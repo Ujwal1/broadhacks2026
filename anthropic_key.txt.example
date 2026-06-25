@@ -1,0 +1,10 @@
+# Put your Anthropic API key on a single line in a file named  anthropic_key.txt
+# (this .example file is just a template — copy it):
+#     cp anthropic_key.txt.example anthropic_key.txt
+#     # then edit anthropic_key.txt and paste your key, removing these comment lines
+#     chmod 600 anthropic_key.txt
+#
+# The file may contain either just the bare key:
+#     sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# or a KEY=value line:
+#     ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

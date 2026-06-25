@@ -1,0 +1,7 @@
+# never commit the real key
+anthropic_key.txt
+.anthropic_key
+.env
+server.log
+__pycache__/
+*.pyc
