@@ -3,5 +3,3 @@ anthropic_key.txt
 .anthropic_key
 .env
 server.log
-__pycache__/
-*.pyc
