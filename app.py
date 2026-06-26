@@ -227,9 +227,17 @@ def align(steps, frames, strictness=4):
             "steps": steps_out}
 
 
+BENCHMARK_DATA = {"config":{"data":"/home/jovyan/workbench/BioVL-QR_zip","categories":["extractdna","gel","electrophoresis","purifydna"],"per_cat":1,"frames":24,"claude_model":"claude-opus-4-8","vlm_model":"Qwen2.5-VL-7B-Instruct (4-bit)  &  Qwen2.5-VL-3B-Instruct","engines":["claude","Qwen2.5-VL-7B-Instruct (4-bit)","Qwen2.5-VL-3B-Instruct"]},"runs":[{"category":"extractdna","video":"extractdna_1","engine":"claude","latency_s":38.7,"n_flags":1,"n_steps":5,"mean_iou":0.485,"localized_frac":1.0,"start_within_5s":0.4,"start_within_10s":0.6,"ordering_acc":0.75,"perstep":[{"gt":[1.0,37.0],"pred":[13.1,39.2]},{"gt":[40.0,47.0],"pred":[78.4,85.0]},{"gt":[55.0,67.0],"pred":[58.8,71.9]},{"gt":[77.0,113.0],"pred":[85.0,104.6]},{"gt":[122.0,146.0],"pred":[124.2,150.3]}]},{"category":"extractdna","video":"extractdna_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":36.1,"n_flags":0,"n_steps":5,"mean_iou":0.372,"localized_frac":1.0,"start_within_5s":0.0,"start_within_10s":0.4,"ordering_acc":1.0,"perstep":[{"gt":[1.0,37.0],"pred":[12.0,31.5]},{"gt":[40.0,47.0],"pred":[32.7,52.3]},{"gt":[55.0,67.0],"pred":[65.4,85.0]},{"gt":[77.0,113.0],"pred":[98.0,117.6]},{"gt":[122.0,146.0],"pred":[130.7,150.3]}]},{"category":"gel","video":"gel_1","engine":"claude","latency_s":24.3,"n_flags":3,"n_steps":6,"mean_iou":0.356,"localized_frac":1.0,"start_within_5s":0.167,"start_within_10s":0.333,"ordering_acc":1.0,"perstep":[{"gt":[2.0,32.0],"pred":[22.7,22.7]},{"gt":[33.0,48.0],"pred":[45.3,45.3]},{"gt":[52.0,188.0],"pred":[45.3,158.7]},{"gt":[203.0,221.0],"pred":[181.4,204.1]},{"gt":[229.0,458.0],"pred":[226.8,453.5]},{"gt":[460.0,518.0],"pred":[476.2,498.8]}]},{"category":"gel","video":"gel_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":111.4,"n_flags":0,"n_steps":6,"mean_iou":0.0,"localized_frac":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"ordering_acc":1.0,"perstep":[{"gt":[2.0,32.0],"pred":None},{"gt":[33.0,48.0],"pred":None},{"gt":[52.0,188.0],"pred":None},{"gt":[203.0,221.0],"pred":None},{"gt":[229.0,458.0],"pred":None},{"gt":[460.0,518.0],"pred":None}]},{"category":"electrophoresis","video":"electrophoresis_1","engine":"claude","latency_s":27.8,"n_flags":3,"n_steps":7,"mean_iou":0.156,"localized_frac":1.0,"start_within_5s":0.143,"start_within_10s":0.286,"ordering_acc":0.833,"perstep":[{"gt":[3.0,10.0],"pred":[63.0,84.0]},{"gt":[17.0,79.0],"pred":[21.0,42.0]},{"gt":[93.0,236.0],"pred":[273.0,315.0]},{"gt":[244.0,356.0],"pred":[336.0,336.1]},{"gt":[357.0,396.0],"pred":[378.1,420.1]},{"gt":[400.0,408.0],"pred":[420.1,441.1]},{"gt":[436.0,481.0],"pred":[441.1,462.1]}]},{"category":"electrophoresis","video":"electrophoresis_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":42.8,"n_flags":0,"n_steps":7,"mean_iou":0.114,"localized_frac":1.0,"start_within_5s":0.286,"start_within_10s":0.286,"ordering_acc":1.0,"perstep":[{"gt":[3.0,10.0],"pred":[0.0,12.0]},{"gt":[17.0,79.0],"pred":[12.0,31.5]},{"gt":[93.0,236.0],"pred":[31.5,42.0]},{"gt":[244.0,356.0],"pred":[42.0,105.0]},{"gt":[357.0,396.0],"pred":[105.0,210.0]},{"gt":[400.0,408.0],"pred":[210.0,252.1]},{"gt":[436.0,481.0],"pred":[252.1,420.1]}]},{"category":"purifydna","video":"purifydna_1","engine":"claude","latency_s":41.6,"n_flags":3,"n_steps":19,"mean_iou":0.14,"localized_frac":1.0,"start_within_5s":0.211,"start_within_10s":0.368,"ordering_acc":0.833,"perstep":[{"gt":[5.0,39.0],"pred":[19.0,56.9]},{"gt":[42.0,50.0],"pred":[37.9,75.8]},{"gt":[60.0,91.0],"pred":[151.7,170.7]},{"gt":[92.0,102.0],"pred":[94.8,113.8]},{"gt":[104.0,111.0],"pred":[113.8,113.8]},{"gt":[112.0,118.0],"pred":[113.8,132.7]},{"gt":[123.0,131.0],"pred":[170.7,208.6]},{"gt":[134.0,164.0],"pred":[208.6,246.5]},{"gt":[174.0,200.0],"pred":[265.5,303.4]},{"gt":[209.0,214.0],"pred":[303.4,322.4]},{"gt":[215.0,218.0],"pred":[303.4,322.4]},{"gt":[220.0,257.0],"pred":[246.5,417.2]},{"gt":[267.0,282.0],"pred":[322.4,341.3]},{"gt":[299.0,304.0],"pred":[341.3,360.3]},{"gt":[305.0,307.0],"pred":[341.3,360.3]},{"gt":[314.0,335.0],"pred":[322.4,360.3]},{"gt":[359.0,368.0],"pred":[360.3,398.2]},{"gt":[368.0,403.0],"pred":[379.3,417.2]},{"gt":[423.0,433.0],"pred":[417.2,436.2]}]},{"category":"purifydna","video":"purifydna_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":110.5,"n_flags":0,"n_steps":19,"mean_iou":0.0,"localized_frac":1.0,"start_within_5s":0.053,"start_within_10s":0.053,"ordering_acc":1.0,"perstep":[{"gt":[5.0,39.0],"pred":[0.0,5.0]},{"gt":[42.0,50.0],"pred":[5.0,10.0]},{"gt":[60.0,91.0],"pred":[10.0,15.0]},{"gt":[92.0,102.0],"pred":[15.0,20.0]},{"gt":[104.0,111.0],"pred":[20.0,25.0]},{"gt":[112.0,118.0],"pred":[25.0,30.0]},{"gt":[123.0,131.0],"pred":[30.0,35.0]},{"gt":[134.0,164.0],"pred":[35.0,40.0]},{"gt":[174.0,200.0],"pred":[40.0,45.0]},{"gt":[209.0,214.0],"pred":[45.0,50.0]},{"gt":[215.0,218.0],"pred":[50.0,55.0]},{"gt":[220.0,257.0],"pred":[55.0,60.0]},{"gt":[267.0,282.0],"pred":[60.0,65.0]},{"gt":[299.0,304.0],"pred":[65.0,70.0]},{"gt":[305.0,307.0],"pred":[70.0,75.0]},{"gt":[314.0,335.0],"pred":[75.0,80.0]},{"gt":[359.0,368.0],"pred":[80.0,85.0]},{"gt":[368.0,403.0],"pred":[85.0,90.0]},{"gt":[423.0,433.0],"pred":[90.0,95.0]}]},{"category":"extractdna","video":"extractdna_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":64.1,"n_flags":5,"n_steps":5,"mean_iou":0.2,"localized_frac":1.0,"start_within_5s":0.2,"start_within_10s":0.2,"ordering_acc":1.0,"perstep":[{"gt":[1.0,37.0],"pred":[0.0,19.6]},{"gt":[40.0,47.0],"pred":[19.6,32.7]},{"gt":[55.0,67.0],"pred":[32.7,52.3]},{"gt":[77.0,113.0],"pred":[52.3,85.0]},{"gt":[122.0,146.0],"pred":[85.0,150.3]}]},{"category":"gel","video":"gel_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":56.2,"n_flags":6,"n_steps":6,"mean_iou":0.0,"localized_frac":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"ordering_acc":1.0,"perstep":[{"gt":[2.0,32.0],"pred":None},{"gt":[33.0,48.0],"pred":None},{"gt":[52.0,188.0],"pred":None},{"gt":[203.0,221.0],"pred":None},{"gt":[229.0,458.0],"pred":None},{"gt":[460.0,518.0],"pred":None}]},{"category":"electrophoresis","video":"electrophoresis_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":76.4,"n_flags":7,"n_steps":7,"mean_iou":0.126,"localized_frac":1.0,"start_within_5s":0.143,"start_within_10s":0.143,"ordering_acc":1.0,"perstep":[{"gt":[3.0,10.0],"pred":[0.0,42.0]},{"gt":[17.0,79.0],"pred":[42.0,105.0]},{"gt":[93.0,236.0],"pred":[105.0,147.0]},{"gt":[244.0,356.0],"pred":[147.0,210.0]},{"gt":[357.0,396.0],"pred":[210.0,252.1]},{"gt":[400.0,408.0],"pred":[252.1,315.0]},{"gt":[436.0,481.0],"pred":[315.0,357.1]}]},{"category":"purifydna","video":"purifydna_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":167.1,"n_flags":0,"n_steps":19,"mean_iou":0.0,"localized_frac":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"ordering_acc":1.0,"perstep":[{"gt":[5.0,39.0],"pred":None},{"gt":[42.0,50.0],"pred":None},{"gt":[60.0,91.0],"pred":None},{"gt":[92.0,102.0],"pred":None},{"gt":[104.0,111.0],"pred":None},{"gt":[112.0,118.0],"pred":None},{"gt":[123.0,131.0],"pred":None},{"gt":[134.0,164.0],"pred":None},{"gt":[174.0,200.0],"pred":None},{"gt":[209.0,214.0],"pred":None},{"gt":[215.0,218.0],"pred":None},{"gt":[220.0,257.0],"pred":None},{"gt":[267.0,282.0],"pred":None},{"gt":[299.0,304.0],"pred":None},{"gt":[305.0,307.0],"pred":None},{"gt":[314.0,335.0],"pred":None},{"gt":[359.0,368.0],"pred":None},{"gt":[368.0,403.0],"pred":None},{"gt":[423.0,433.0],"pred":None}]}],"aggregate":{"claude":{"mean_iou":0.284,"start_within_5s":0.23,"start_within_10s":0.397,"localized_frac":1.0,"ordering_acc":0.854,"latency_s":33.1,"n_flags":2.5,"n_videos":4},"Qwen2.5-VL-7B-Instruct (4-bit)":{"mean_iou":0.082,"start_within_5s":0.086,"start_within_10s":0.086,"localized_frac":0.5,"ordering_acc":1.0,"latency_s":90.95,"n_flags":4.5,"n_videos":4},"Qwen2.5-VL-3B-Instruct":{"mean_iou":0.121,"start_within_5s":0.085,"start_within_10s":0.185,"localized_frac":0.75,"ordering_acc":1.0,"latency_s":75.2,"n_flags":0.0,"n_videos":4}},"by_category":{"claude":{"extractdna":{"mean_iou":0.485,"start_within_5s":0.4,"start_within_10s":0.6,"localized_frac":1.0,"ordering_acc":0.75,"latency_s":38.7,"n_flags":1.0,"n_videos":1},"gel":{"mean_iou":0.356,"start_within_5s":0.167,"start_within_10s":0.333,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":24.3,"n_flags":3.0,"n_videos":1},"electrophoresis":{"mean_iou":0.156,"start_within_5s":0.143,"start_within_10s":0.286,"localized_frac":1.0,"ordering_acc":0.833,"latency_s":27.8,"n_flags":3.0,"n_videos":1},"purifydna":{"mean_iou":0.14,"start_within_5s":0.211,"start_within_10s":0.368,"localized_frac":1.0,"ordering_acc":0.833,"latency_s":41.6,"n_flags":3.0,"n_videos":1}},"Qwen2.5-VL-7B-Instruct (4-bit)":{"extractdna":{"mean_iou":0.2,"start_within_5s":0.2,"start_within_10s":0.2,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":64.1,"n_flags":5.0,"n_videos":1},"gel":{"mean_iou":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"localized_frac":0.0,"ordering_acc":1.0,"latency_s":56.2,"n_flags":6.0,"n_videos":1},"electrophoresis":{"mean_iou":0.126,"start_within_5s":0.143,"start_within_10s":0.143,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":76.4,"n_flags":7.0,"n_videos":1},"purifydna":{"mean_iou":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"localized_frac":0.0,"ordering_acc":1.0,"latency_s":167.1,"n_flags":0.0,"n_videos":1}},"Qwen2.5-VL-3B-Instruct":{"extractdna":{"mean_iou":0.372,"start_within_5s":0.0,"start_within_10s":0.4,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":36.1,"n_flags":0.0,"n_videos":1},"gel":{"mean_iou":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"localized_frac":0.0,"ordering_acc":1.0,"latency_s":111.4,"n_flags":0.0,"n_videos":1},"electrophoresis":{"mean_iou":0.114,"start_within_5s":0.286,"start_within_10s":0.286,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":42.8,"n_flags":0.0,"n_videos":1},"purifydna":{"mean_iou":0.0,"start_within_5s":0.053,"start_within_10s":0.053,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":110.5,"n_flags":0.0,"n_videos":1}}}}
+
+
 @app.route("/")
 def index():
     return render_template_string(PAGE, model=MODEL, max_frames=MAX_FRAMES)
+
+
+@app.route("/benchmark-data")
+def benchmark_data():
+    return jsonify(BENCHMARK_DATA)
 
 
 @app.route("/align", methods=["POST"])
@@ -308,7 +316,7 @@ def align_route():
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <title>Protocol ↔ Video Alignment</title>
 <style>
- body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:860px;
+ body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:920px;
       margin:36px auto;padding:0 20px;color:#17323a;background:#f7fafb}
  h1{font-size:23px;margin-bottom:2px} .sub{color:#5c7079;margin-top:0;font-size:14px}
  .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(11,32,39,.07);margin-top:16px}
@@ -341,9 +349,52 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff;border-top-color:transparent;
       border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px}
  @keyframes s{to{transform:rotate(360deg)}}
+ /* tabs */
+ .tabs{display:flex;gap:4px;margin-bottom:0;margin-top:0}
+ .tab{padding:10px 22px;border-radius:10px 10px 0 0;font-weight:600;font-size:14px;cursor:pointer;
+      background:#e4eef0;color:#5c7079;border:none;transition:background .15s}
+ .tab.active{background:#0e7c86;color:#fff}
+ .tab-panel{display:none} .tab-panel.active{display:block}
+ /* benchmark */
+ .bm-section{margin-top:20px}
+ .bm-title{font-weight:700;font-size:17px;margin-bottom:12px;color:#17323a}
+ .bm-sub{font-size:13px;color:#5c7079;margin-bottom:16px}
+ table{width:100%;border-collapse:collapse;font-size:13px}
+ th{background:#f0f6f7;font-weight:700;text-align:left;padding:8px 10px;border-bottom:2px solid #d9e6e8}
+ td{padding:7px 10px;border-bottom:1px solid #eef4f5;vertical-align:middle}
+ tr:last-child td{border-bottom:none}
+ .eng-claude{color:#0e7c86;font-weight:700} .eng-7b{color:#7c5e0e;font-weight:700} .eng-3b{color:#5e0e7c;font-weight:700}
+ .bar-wrap{background:#eef4f5;border-radius:6px;height:10px;width:120px;display:inline-block;vertical-align:middle}
+ .bar-fill{height:10px;border-radius:6px;display:block}
+ .bar-claude{background:#0e7c86} .bar-7b{background:#c8960e} .bar-3b{background:#8e24aa}
+ .cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+ .cat-tab{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+          background:#eef4f5;color:#5c7079;border:none;transition:background .15s}
+ .cat-tab.active{background:#0e7c86;color:#fff}
+ .metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+ .metric-card{background:#f7fafb;border:1px solid #d9e6e8;border-radius:10px;padding:12px}
+ .metric-label{font-size:11px;font-weight:600;color:#5c7079;text-transform:uppercase;letter-spacing:.5px}
+ .metric-val{font-size:22px;font-weight:700;margin:2px 0 0}
+ .mc-claude{color:#0e7c86} .mc-7b{color:#c8960e} .mc-3b{color:#8e24aa}
+ .winner{font-size:11px;margin-top:2px;color:#5c7079}
+ .timeline-wrap{overflow-x:auto;margin-top:8px}
+ .tl-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px}
+ .tl-label{width:90px;flex-shrink:0;color:#5c7079;text-align:right}
+ .tl-bar{position:relative;height:18px;border-radius:4px;flex:1;background:#eef4f5}
+ .tl-gt{position:absolute;height:100%;border-radius:4px;background:rgba(14,124,134,.18);border:1.5px solid #0e7c86}
+ .tl-pred{position:absolute;height:8px;top:5px;border-radius:3px;opacity:.85}
+ .tl-pred-claude{background:#0e7c86} .tl-pred-7b{background:#c8960e} .tl-pred-3b{background:#8e24aa}
+ .tl-miss{font-size:11px;color:#c0392b;margin-left:4px}
 </style></head><body>
 <h1>🎬↔📋 Protocol–Video Review</h1>
 <p class="sub">Attach a protocol file and one or more videos; Claude (<b>{{model}}</b>) reviews each video against the protocol, step by step.</p>
+
+<div class="tabs">
+ <button class="tab active" onclick="switchTab('review',this)">📋 Review</button>
+ <button class="tab" onclick="switchTab('benchmark',this)">📊 Benchmark</button>
+</div>
+
+<div id="tab-review" class="tab-panel active">
 <div class="card">
  <form id="f">
   <label>Protocol file(s) — a .txt with one step per line (multiple files are merged)</label>
@@ -358,14 +409,49 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  </form>
 </div>
 <div id="out"></div>
+</div>
+
+<div id="tab-benchmark" class="tab-panel">
+<div class="card bm-section">
+ <div class="bm-title">VLM Benchmark — Protocol Step Localization</div>
+ <div class="bm-sub">Comparing <span class="eng-claude">Claude Opus 4.8</span>, <span class="eng-7b">Qwen2.5-VL-7B (4-bit)</span>, and <span class="eng-3b">Qwen2.5-VL-3B</span> on 4 lab procedure categories · 24 frames/video</div>
+
+ <div class="cat-tabs" id="catTabs">
+  <button class="cat-tab active" onclick="setCat('all',this)">All categories</button>
+  <button class="cat-tab" onclick="setCat('extractdna',this)">extractdna</button>
+  <button class="cat-tab" onclick="setCat('gel',this)">gel</button>
+  <button class="cat-tab" onclick="setCat('electrophoresis',this)">electrophoresis</button>
+  <button class="cat-tab" onclick="setCat('purifydna',this)">purifydna</button>
+ </div>
+
+ <div class="metric-grid" id="metricGrid"></div>
+
+ <div style="font-weight:700;font-size:14px;margin:16px 0 8px">All metrics by engine</div>
+ <div id="bmTable"></div>
+
+ <div style="font-weight:700;font-size:14px;margin:20px 0 8px">Step timeline — predicted vs ground truth <span style="font-size:12px;font-weight:400;color:#5c7079">(select a category above)</span></div>
+ <div id="bmTimeline"></div>
+</div>
+</div>
+
 <script>
+// ── tab switching ──
+function switchTab(id,btn){
+ document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+ document.getElementById('tab-'+id).classList.add('active');
+ btn.classList.add('active');
+ if(id==='benchmark' && !BM) loadBenchmark();
+}
+
+// ── review tab ──
 const f=document.getElementById('f'),b=document.getElementById('b'),out=document.getElementById('out');
 function fmt(t){t=Math.round(t);return (t<60?t+'s':Math.floor(t/60)+'m'+String(t%60).padStart(2,'0')+'s');}
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 const DAYS=['monday','tuesday','wednesday','thursday','friday'];
 const MOOD=['🧐 Monday — strict audit','🤨 Tuesday — picky','🙂 Wednesday — balanced','😌 Thursday — easygoing','😎 Friday — relaxed'];
 const DOT={green:'🟢',yellow:'🟡',red:'🔴'},LBL={green:'done / probably done',yellow:'uncertain',red:'appears missed'};
-let DATA=null, dayIdx=4;   // default Friday (most relaxed)
+let DATA=null, dayIdx=4;
 function renderStep(v,s){
  const lvl=(s.level in DOT)?s.level:'yellow';
  const thumb=(s.best_frame_index>=0 && v.thumbs[s.best_frame_index])?v.thumbs[s.best_frame_index]:null;
@@ -409,6 +495,134 @@ f.onsubmit=async e=>{e.preventDefault();
   DATA=d;renderAll();
  }catch(err){out.innerHTML=`<div class="card">⚠️ ${esc(String(err))}</div>`;}
  b.disabled=false;b.textContent='Review video(s)';};
+
+// ── benchmark tab ──
+let BM=null, activeCat='all';
+const ENGINES=['claude','Qwen2.5-VL-7B-Instruct (4-bit)','Qwen2.5-VL-3B-Instruct'];
+const ENG_SHORT={'claude':'Claude','Qwen2.5-VL-7B-Instruct (4-bit)':'Qwen 7B','Qwen2.5-VL-3B-Instruct':'Qwen 3B'};
+const ENG_CLS={'claude':'claude','Qwen2.5-VL-7B-Instruct (4-bit)':'7b','Qwen2.5-VL-3B-Instruct':'3b'};
+const METRICS=[
+ {key:'mean_iou',label:'Mean IoU',fmt:v=>(v*100).toFixed(1)+'%',best:'high'},
+ {key:'localized_frac',label:'Localized',fmt:v=>(v*100).toFixed(0)+'%',best:'high'},
+ {key:'start_within_10s',label:'Start ≤10s',fmt:v=>(v*100).toFixed(0)+'%',best:'high'},
+ {key:'ordering_acc',label:'Order Acc.',fmt:v=>(v*100).toFixed(0)+'%',best:'high'},
+ {key:'latency_s',label:'Latency',fmt:v=>v.toFixed(1)+'s',best:'low'},
+ {key:'n_flags',label:'Avg Flags',fmt:v=>v.toFixed(1),best:'low'},
+];
+
+async function loadBenchmark(){
+ const r=await fetch('/benchmark-data');
+ BM=await r.json();
+ renderBenchmark();
+}
+
+function getStats(cat){
+ if(cat==='all') return BM.aggregate;
+ const out={};
+ ENGINES.forEach(e=>{out[e]=(BM.by_category[e]||{})[cat]||null;});
+ return out;
+}
+
+function pct(v,max){return Math.round(Math.min(100,v/max*100));}
+
+function renderMetricGrid(stats){
+ const grid=document.getElementById('metricGrid');
+ grid.innerHTML=METRICS.map(m=>{
+  const vals=ENGINES.map(e=>stats[e]?stats[e][m.key]:null).filter(v=>v!==null);
+  const best=m.best==='high'?Math.max(...vals):Math.min(...vals);
+  const winner=ENGINES.find(e=>stats[e]&&stats[e][m.key]===best);
+  return `<div class="metric-card">
+   <div class="metric-label">${m.label}</div>
+   ${ENGINES.map(e=>{
+    const v=stats[e]?stats[e][m.key]:null;
+    const cls='mc-'+ENG_CLS[e];
+    return v!==null?`<div class="metric-val ${cls}" style="font-size:15px">${ENG_SHORT[e]}: ${m.fmt(v)}</div>`:''
+   }).join('')}
+   <div class="winner">Best: <b>${ENG_SHORT[winner]||'—'}</b></div>
+  </div>`;
+ }).join('');
+}
+
+function renderTable(stats){
+ const COLS=[
+  {key:'mean_iou',label:'Mean IoU',fmt:v=>(v*100).toFixed(1)+'%',bar:true,max:1},
+  {key:'localized_frac',label:'Localized %',fmt:v=>(v*100).toFixed(0)+'%',bar:true,max:1},
+  {key:'start_within_5s',label:'Start≤5s',fmt:v=>(v*100).toFixed(0)+'%',bar:false},
+  {key:'start_within_10s',label:'Start≤10s',fmt:v=>(v*100).toFixed(0)+'%',bar:false},
+  {key:'ordering_acc',label:'Order Acc.',fmt:v=>(v*100).toFixed(0)+'%',bar:false},
+  {key:'latency_s',label:'Latency (s)',fmt:v=>v.toFixed(1),bar:true,max:200,invert:true},
+  {key:'n_flags',label:'Avg Flags',fmt:v=>v.toFixed(1),bar:false},
+ ];
+ let h=`<table><tr><th>Engine</th>${COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
+ ENGINES.forEach(e=>{
+  const s=stats[e];
+  if(!s){h+=`<tr><td class="eng-${ENG_CLS[e]}">${ENG_SHORT[e]}</td>${COLS.map(()=>`<td>—</td>`).join('')}</tr>`;return;}
+  h+=`<tr><td class="eng-${ENG_CLS[e]}">${ENG_SHORT[e]}</td>`;
+  COLS.forEach(c=>{
+   const v=s[c.key];
+   if(c.bar){
+    const pct2=c.invert?Math.round((1-v/c.max)*100):Math.round(v/c.max*100);
+    h+=`<td>${c.fmt(v)} <span class="bar-wrap"><span class="bar-fill bar-${ENG_CLS[e]}" style="width:${pct2}%"></span></span></td>`;
+   } else {
+    h+=`<td>${c.fmt(v)}</td>`;
+   }
+  });
+  h+=`</tr>`;
+ });
+ h+=`</table>`;
+ document.getElementById('bmTable').innerHTML=h;
+}
+
+function renderTimeline(cat){
+ const tl=document.getElementById('bmTimeline');
+ if(cat==='all'){tl.innerHTML='<div style="color:#5c7079;font-size:13px">Select a category to see step-level timelines.</div>';return;}
+ const runs=BM.runs.filter(r=>r.category===cat);
+ if(!runs.length){tl.innerHTML='<div style="color:#5c7079;font-size:13px">No data.</div>';return;}
+ const nSteps=runs[0].n_steps;
+ const maxT=Math.max(...runs.flatMap(r=>r.perstep.flatMap(p=>[p.gt[1],p.pred?p.pred[1]:0])));
+ let html='<div class="timeline-wrap">';
+ for(let i=0;i<nSteps;i++){
+  html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#17323a;margin-bottom:4px">Step ${i+1}</div>`;
+  runs.forEach(r=>{
+   const p=r.perstep[i];
+   const cls=ENG_CLS[r.engine];
+   const gtL=pct(p.gt[0],maxT),gtW=Math.max(1,pct(p.gt[1]-p.gt[0],maxT));
+   let predBar='';
+   if(p.pred){
+    const pL=pct(p.pred[0],maxT),pW=Math.max(1,pct(p.pred[1]-p.pred[0],maxT));
+    predBar=`<span class="tl-pred tl-pred-${cls}" style="left:${pL}%;width:${pW}%"></span>`;
+   } else {
+    predBar=`<span class="tl-miss">✗ not localized</span>`;
+   }
+   html+=`<div class="tl-row"><div class="tl-label">${ENG_SHORT[r.engine]}</div>`+
+    `<div class="tl-bar"><span class="tl-gt" style="left:${gtL}%;width:${gtW}%"></span>${p.pred?predBar:''}</div>`+
+    (p.pred?'':`<span class="tl-miss" style="font-size:11px;color:#c0392b">✗</span>`)+
+   `</div>`;
+  });
+  html+='</div>';
+ }
+ html+=`<div style="font-size:11px;color:#5c7079;margin-top:6px">
+   <span style="display:inline-block;width:28px;height:10px;background:rgba(14,124,134,.18);border:1.5px solid #0e7c86;border-radius:3px;vertical-align:middle"></span> ground truth &nbsp;
+   <span style="display:inline-block;width:28px;height:8px;background:#0e7c86;border-radius:3px;vertical-align:middle"></span> Claude &nbsp;
+   <span style="display:inline-block;width:28px;height:8px;background:#c8960e;border-radius:3px;vertical-align:middle"></span> Qwen 7B &nbsp;
+   <span style="display:inline-block;width:28px;height:8px;background:#8e24aa;border-radius:3px;vertical-align:middle"></span> Qwen 3B
+  </div></div>`;
+ tl.innerHTML=html;
+}
+
+function renderBenchmark(){
+ const stats=getStats(activeCat);
+ renderMetricGrid(stats);
+ renderTable(stats);
+ renderTimeline(activeCat);
+}
+
+function setCat(cat,btn){
+ activeCat=cat;
+ document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+ btn.classList.add('active');
+ if(BM) renderBenchmark();
+}
 </script></body></html>"""
 
 

@@ -3,3 +3,11 @@ anthropic_key.txt
 .anthropic_key
 .env
 server.log
+
+# virtual environment / python caches
+.venv/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
