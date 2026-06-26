@@ -5,5 +5,3 @@ anthropic_key.txt
 server.log
 __pycache__/
 *.pyc
-# large generated live-comparison snapshot (embeds video frames); regenerate locally
-demo.html
