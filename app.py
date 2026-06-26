@@ -1,27 +1,34 @@
 #!/usr/bin/env python
 """
-Protocol → video step alignment.
+Protocol → video step alignment, with a Claude vs open-source-VLM comparison.
 
 Paste a protocol (one step per line) and upload a video of someone performing it.
-The app samples timestamped frames, sends them (in order, each labeled with its
-time) plus the protocol to Claude, and Claude returns, for each step, the
-time-range and the single most representative frame where that step happens.
+The app samples timestamped frames and, for each protocol step, returns a confidence,
+a time-range, and the most representative frame — as an advisory review (not pass/fail).
+
+You can run the SAME task with two engines and see them side by side:
+  - Claude   (claude-opus-4-8, via the Anthropic API)
+  - VLM      (Qwen2.5-VL, a local open-source vision-language model on the GPU)
+Both get the identical sampled frames + protocol, so the comparison is fair.
 
 Claude's API takes images, not video — so frames are the unit of alignment.
 
-API key: put it (one line) in  video_app/anthropic_key.txt  — read automatically.
+API key: put it (one line) in  anthropic_key.txt  — read automatically.
 ($ANTHROPIC_API_KEY, $ANTHROPIC_API_KEY_FILE, .anthropic_key, .env also honored.)
 
 Run:
-    pip install flask anthropic opencv-python
+    pip install -r requirements.txt
     echo "sk-ant-..." > anthropic_key.txt && chmod 600 anthropic_key.txt
     python app.py            # http://0.0.0.0:7860
     # laptop:  ssh -L 7860:localhost:7860 <host>  -> open localhost:7860
+The local VLM is optional: if torch/CUDA/transformers aren't available the app still
+runs Claude-only and the VLM option is disabled in the UI.
 """
 import base64
 import json
 import os
 import tempfile
+import time
 
 import cv2
 import anthropic
@@ -31,6 +38,20 @@ MODEL = "claude-opus-4-8"
 MAX_FRAMES = 30
 FRAME_WIDTH = 1280       # higher res so small tube/reagent labels are legible
 PORT = int(os.environ.get("PORT", "7860"))
+
+# --- optional local VLM engine (mirrors align()'s schema) -------------------
+try:
+    import torch
+    _CUDA = torch.cuda.is_available()
+except Exception:
+    _CUDA = False
+try:
+    import vlm_engine
+    VLM_AVAILABLE = bool(_CUDA)
+except Exception:
+    vlm_engine = None
+    VLM_AVAILABLE = False
+VLM_LABEL = vlm_engine.vlm_name() if vlm_engine else "VLM"
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -208,9 +229,34 @@ def align(steps, frames):
             "steps": steps_out}
 
 
+def run_engine(engine, steps, frames):
+    """Run one engine and wrap it with a label + timing + error capture (so one engine
+    failing never kills the other in a side-by-side comparison)."""
+    t0 = time.time()
+    try:
+        if engine == "claude":
+            res = align(steps, frames)
+            label = f"Claude · {MODEL}"
+        elif engine == "vlm":
+            if not VLM_AVAILABLE:
+                raise RuntimeError("Local VLM not available (needs CUDA + transformers).")
+            res = vlm_engine.align_vlm(steps, frames)
+            label = f"VLM · {VLM_LABEL}"
+        else:
+            raise ValueError(f"unknown engine {engine}")
+        res["label"] = label
+        res["elapsed_s"] = round(time.time() - t0, 1)
+        return res
+    except Exception as e:
+        return {"label": {"claude": f"Claude · {MODEL}", "vlm": f"VLM · {VLM_LABEL}"}.get(engine, engine),
+                "error": str(e), "elapsed_s": round(time.time() - t0, 1),
+                "observed_summary": "", "n_flags": 0, "steps": []}
+
+
 @app.route("/")
 def index():
-    return render_template_string(PAGE, model=MODEL, max_frames=MAX_FRAMES)
+    return render_template_string(PAGE, model=MODEL, max_frames=MAX_FRAMES,
+                                  vlm_available=VLM_AVAILABLE, vlm_label=VLM_LABEL)
 
 
 @app.route("/align", methods=["POST"])
@@ -226,18 +272,26 @@ def align_route():
     except ValueError:
         n = 16
 
+    # which engine(s): claude | vlm | both
+    engine = request.form.get("engine", "both")
+    if engine == "both":
+        engines = ["claude", "vlm"] if VLM_AVAILABLE else ["claude"]
+    elif engine == "vlm":
+        engines = ["vlm"] if VLM_AVAILABLE else ["claude"]
+    else:
+        engines = ["claude"]
+
     suffix = os.path.splitext(f.filename)[1] or ".mp4"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     try:
         f.save(tmp.name)
         tmp.close()
         frames, total, duration, fps = sample_frames(tmp.name, n)
-        result = align(steps, frames)
-        return jsonify(n_frames=len(frames), duration=round(duration, 1), **result)
+        results = {eng: run_engine(eng, steps, frames) for eng in engines}  # same frames -> fair
+        return jsonify(n_frames=len(frames), duration=round(duration, 1),
+                       engines=engines, results=results)
     except anthropic.APIError as e:
         return jsonify(error=f"Claude API error: {e}"), 502
-    except json.JSONDecodeError:
-        return jsonify(error="Claude returned an unparseable result; try fewer frames or a shorter protocol."), 502
     except Exception as e:
         return jsonify(error=str(e)), 400
     finally:
@@ -248,82 +302,109 @@ def align_route():
 
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
-<title>Protocol ↔ Video Alignment</title>
+<title>Protocol ↔ Video Alignment — Claude vs VLM</title>
 <style>
- body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:860px;
+ body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:1180px;
       margin:36px auto;padding:0 20px;color:#17323a;background:#f7fafb}
  h1{font-size:23px;margin-bottom:2px} .sub{color:#5c7079;margin-top:0;font-size:14px}
  .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(11,32,39,.07);margin-top:16px}
  label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
  input,textarea{width:100%;padding:9px;border:1px solid #d9e6e8;border-radius:8px;box-sizing:border-box;font-size:14px}
- textarea{min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
- .row{display:flex;gap:16px;align-items:flex-end} .row>div:first-child{flex:1}
+ textarea{min-height:140px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
+ .row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap} .row>div:first-child{flex:1;min-width:220px}
+ .engsel{display:flex;gap:8px;margin-top:4px} .engsel label{display:flex;align-items:center;gap:6px;font-weight:500;
+      margin:0;padding:8px 12px;border:1px solid #d9e6e8;border-radius:8px;cursor:pointer;font-size:13px;background:#fff}
+ .engsel input{width:auto} .engsel label:has(input:checked){border-color:#0e7c86;background:#e8f5f3;font-weight:600}
  button{margin-top:16px;background:#0e7c86;color:#fff;border:0;border-radius:8px;padding:11px 22px;
       font-size:15px;font-weight:600;cursor:pointer} button:disabled{opacity:.5;cursor:default}
- .step{display:flex;gap:14px;padding:12px 0;border-top:1px solid #eef4f5}
+ .cols{display:flex;gap:18px;align-items:flex-start} .cols>div{flex:1;min-width:0}
+ .enghead{font-size:15px;font-weight:700;padding:10px 14px;border-radius:8px 8px 0 0;color:#fff}
+ .enghead.claude{background:#0e7c86} .enghead.vlm{background:#5b54c9}
+ .engbody{border:1px solid #e3ebec;border-top:0;border-radius:0 0 8px 8px;padding:14px}
+ .step{display:flex;gap:12px;padding:11px 0;border-top:1px solid #eef4f5}
  .step:first-child{border-top:0}
- .step img{width:150px;border-radius:8px;border:1px solid #d9e6e8;flex:none;object-fit:cover}
- .step .noimg{width:150px;height:90px;border-radius:8px;background:#f0f4f5;color:#9bb1b8;
-      display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;text-align:center}
- .st{font-weight:600} .tm{font-weight:600;font-size:13px;margin:2px 0}
- .ev{color:#5c7079;font-size:13px}
- .banner{padding:11px 14px;border-radius:8px;font-weight:600;margin-bottom:10px}
- .ok{background:#e2f4f0;color:#0e7c86} .warn{background:#fff4df;color:#9a6b15}
- .warntext{color:#9a6b15;font-size:13px;font-weight:500;margin:2px 0}
- .badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:1px}
+ .step img{width:128px;border-radius:8px;border:1px solid #d9e6e8;flex:none;object-fit:cover}
+ .step .noimg{width:128px;height:78px;border-radius:8px;background:#f0f4f5;color:#9bb1b8;
+      display:flex;align-items:center;justify-content:center;font-size:11px;flex:none;text-align:center}
+ .st{font-weight:600;font-size:14px} .tm{font-weight:600;font-size:12px;margin:2px 0}
+ .ev{color:#5c7079;font-size:12.5px;line-height:1.4}
+ .banner{padding:9px 12px;border-radius:8px;font-weight:600;margin-bottom:10px;font-size:13px}
+ .ok{background:#e2f4f0;color:#0e7c86} .warn{background:#fff4df;color:#9a6b15} .err{background:#fde8e8;color:#b3261e}
+ .warntext{color:#9a6b15;font-size:12.5px;font-weight:500;margin:2px 0}
+ .badge{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:1px}
  .b-high{background:#e2f4f0;color:#0e7c86} .b-medium{background:#eaf2f4;color:#3a7a86}
  .b-low{background:#eef0f1;color:#7a8a90} .b-flag{background:#fff1d6;color:#a9701b}
- .review{outline:2px solid #f3d28a;outline-offset:-2px;border-radius:8px;padding-left:10px}
- details{margin-top:10px;font-size:13px;color:#5c7079} summary{cursor:pointer;font-weight:600}
- #meta{color:#5c7079;font-size:12px;margin-bottom:6px}
+ .review{outline:2px solid #f3d28a;outline-offset:-2px;border-radius:8px;padding-left:8px}
+ details{margin-top:10px;font-size:12.5px;color:#5c7079} summary{cursor:pointer;font-weight:600}
+ .elapsed{font-size:12px;font-weight:500;opacity:.85;float:right}
+ #meta{color:#5c7079;font-size:12px;margin-bottom:10px}
  .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff;border-top-color:transparent;
       border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px}
  @keyframes s{to{transform:rotate(360deg)}}
 </style></head><body>
 <h1>🎬↔📋 Protocol–Video Alignment</h1>
-<p class="sub">Paste a protocol and upload a video; Claude (<b>{{model}}</b>) finds the frames for each step.</p>
+<p class="sub">Paste a protocol and upload a video. The same frames + protocol are reviewed by
+<b>Claude ({{model}})</b>{% if vlm_available %} and a local open VLM (<b>{{vlm_label}}</b>){% endif %},
+shown side by side for comparison.</p>
 <div class="card">
  <form id="f">
   <label>Protocol — one step per line</label>
-  <textarea name="protocol" placeholder="1. Add Master Mix to the tube&#10;2. Add forward primer&#10;3. Add reverse primer&#10;4. Add template DNA&#10;5. Flick to mix and quick-spin&#10;6. Place in thermocycler"></textarea>
+  <textarea name="protocol" placeholder="1. Mark four tubes&#10;2. Add 90 µL sample to tube 1, 90 µL buffer to the rest&#10;3. Add 10 µL sample to the 10^-1 tube and mix&#10;4. Serially transfer 10 µL down the dilution series"></textarea>
   <div class="row">
    <div><label>Video file (.mp4 / .mov)</label><input type="file" name="video" accept="video/*" required></div>
-   <div><label>Frames (max {{max_frames}})</label><input type="number" name="frames" value="20" min="2" max="{{max_frames}}" style="width:90px"></div>
+   <div><label>Frames (max {{max_frames}})</label><input type="number" name="frames" value="16" min="2" max="{{max_frames}}" style="width:90px"></div>
   </div>
+  <label>Engine</label>
+  <div class="engsel">
+   <label><input type="radio" name="engine" value="both" {% if vlm_available %}checked{% endif %} {% if not vlm_available %}disabled{% endif %}>Compare both</label>
+   <label><input type="radio" name="engine" value="claude" {% if not vlm_available %}checked{% endif %}>Claude only</label>
+   <label><input type="radio" name="engine" value="vlm" {% if not vlm_available %}disabled{% endif %}>VLM only</label>
+  </div>
+  {% if not vlm_available %}<div class="sub" style="margin-top:6px">⚠ Local VLM unavailable (no CUDA/transformers) — Claude only.</div>{% endif %}
   <button id="b" type="submit">Review video</button>
  </form>
 </div>
 <div class="card" id="result" style="display:none">
- <div id="meta"></div><div id="banner"></div><div id="steps"></div>
- <details id="obs" style="display:none"><summary>What Claude observed in the video</summary><div id="obstext"></div></details>
+ <div id="meta"></div><div class="cols" id="cols"></div>
 </div>
 <script>
 const f=document.getElementById('f'),b=document.getElementById('b'),res=document.getElementById('result'),
-      steps=document.getElementById('steps'),meta=document.getElementById('meta'),banner=document.getElementById('banner'),
-      obs=document.getElementById('obs'),obstext=document.getElementById('obstext');
+      cols=document.getElementById('cols'),meta=document.getElementById('meta');
 function fmt(t){t=Math.round(t);return (t<60?t+'s':Math.floor(t/60)+'m'+String(t%60).padStart(2,'0')+'s');}
 const CONF={high:'likely done',medium:'probably done',low:'unconfirmed'};
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
+
+function renderEngine(key,r){
+ const head=`<div class="enghead ${key}">${esc(r.label)}`+
+   (r.elapsed_s!=null?`<span class="elapsed">⏱ ${r.elapsed_s}s</span>`:'')+`</div>`;
+ if(r.error){return head+`<div class="engbody"><div class="banner err">⚠ ${esc(r.error)}</div></div>`;}
+ let banner = !r.n_flags
+   ? `<div class="banner ok">✓ Looks complete — no steps flagged</div>`
+   : `<div class="banner warn">⚠ ${r.n_flags} step${r.n_flags>1?'s':''} worth a quick review</div>`;
+ let body='';
+ (r.steps||[]).forEach(s=>{
+  const img=s.thumb?`<img src="data:image/jpeg;base64,${s.thumb}">`:`<div class="noimg">no clear frame</div>`;
+  const tm=(s.best_frame_index>=0)?`<div class="tm" style="color:#0e7c86">⏱ ${fmt(s.start_time_s)} – ${fmt(s.end_time_s)}</div>`:'';
+  const badge=s.flag?`<span class="badge b-flag">⚠ review</span>`
+                    :`<span class="badge b-${s.confidence}">${CONF[s.confidence]||esc(s.confidence)}</span>`;
+  const warn=s.flag&&s.warning?`<div class="warntext">💡 ${esc(s.warning)}</div>`:'';
+  body+=`<div class="step${s.flag?' review':''}">${img}<div><div class="st">${s.step_number}. ${esc(s.step_text)}${badge}</div>`+
+        `${tm}${warn}<div class="ev">${esc(s.note)}</div></div></div>`;
+ });
+ const obs=r.observed_summary?`<details><summary>What it observed</summary><div>${esc(r.observed_summary)}</div></details>`:'';
+ return head+`<div class="engbody">${banner}${body}${obs}</div>`;
+}
+
 f.onsubmit=async e=>{e.preventDefault();
- b.disabled=true;b.innerHTML='<span class="spin"></span>Checking…';
- res.style.display='block';meta.textContent='';banner.innerHTML='';obs.style.display='none';
- steps.innerHTML='Sampling frames and reviewing the protocol against the video…';
+ b.disabled=true;b.innerHTML='<span class="spin"></span>Reviewing…';
+ res.style.display='block';meta.textContent='';
+ cols.innerHTML='<div>Sampling frames and reviewing the protocol against the video… (the local VLM can take ~30–60s)</div>';
  try{const r=await fetch('/align',{method:'POST',body:new FormData(f)});const d=await r.json();
-  if(!r.ok){steps.innerHTML='⚠️ '+(d.error||'Error');b.disabled=false;b.textContent='Review video';return;}
-  meta.textContent=`${d.n_frames} frames sampled · ~${fmt(d.duration)} clip`;
-  if(!d.n_flags){banner.innerHTML='<div class="banner ok">✓ Looks complete — no steps flagged for review</div>';}
-  else{banner.innerHTML=`<div class="banner warn">⚠ ${d.n_flags} step${d.n_flags>1?'s':''} worth a quick review (suggestions, not failures)</div>`;}
-  steps.innerHTML='';
-  d.steps.forEach(s=>{const div=document.createElement('div');div.className='step'+(s.flag?' review':'');
-   const img=s.thumb?`<img src="data:image/jpeg;base64,${s.thumb}">`:`<div class="noimg">no clear frame</div>`;
-   const tm=(s.best_frame_index>=0)?`<div class="tm" style="color:#0e7c86">⏱ ${fmt(s.start_time_s)} – ${fmt(s.end_time_s)}</div>`:'';
-   const badge=s.flag?`<span class="badge b-flag">⚠ worth a review</span>`
-                     :`<span class="badge b-${s.confidence}">${CONF[s.confidence]||s.confidence}</span>`;
-   const warn=s.flag&&s.warning?`<div class="warntext">💡 ${s.warning}</div>`:'';
-   div.innerHTML=`${img}<div><div class="st">${s.step_number}. ${s.step_text}${badge}</div>`+
-                 `${tm}${warn}<div class="ev">${s.note||''}</div></div>`;
-   steps.appendChild(div);});
-  if(d.observed_summary){obstext.textContent=d.observed_summary;obs.style.display='block';}
- }catch(err){steps.innerHTML='⚠️ '+err;}
+  if(!r.ok){cols.innerHTML='⚠️ '+esc(d.error||'Error');b.disabled=false;b.textContent='Review video';return;}
+  meta.textContent=`${d.n_frames} frames sampled · ~${fmt(d.duration)} clip · engines: ${d.engines.join(' vs ')}`;
+  cols.innerHTML='';
+  d.engines.forEach(k=>{const div=document.createElement('div');div.innerHTML=renderEngine(k,d.results[k]);cols.appendChild(div);});
+ }catch(err){cols.innerHTML='⚠️ '+esc(''+err);}
  b.disabled=false;b.textContent='Review video';};
 </script></body></html>"""
 

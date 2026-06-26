@@ -1,0 +1,15 @@
+# --- core (Claude protocol↔video alignment app) ---
+flask
+anthropic
+opencv-python
+
+# --- optional: local open-source VLM comparison (needs a CUDA GPU) ---
+# The app runs Claude-only if these are absent.
+torch
+transformers>=4.49,<5
+accelerate
+qwen-vl-utils
+pillow
+# NOTE: torch 2.2.x is built against numpy 1.x — if you use that torch, pin `numpy<2`.
+# (The combo validated on the hackathon box: torch 2.2.2+cu121, transformers 4.51.3,
+#  numpy 1.26.4, opencv 4.13 — Qwen2.5-VL-3B-Instruct on a Tesla T4.)
