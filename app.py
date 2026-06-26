@@ -22,6 +22,7 @@ import base64
 import json
 import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import cv2
 import anthropic
@@ -107,13 +108,17 @@ def sample_frames(path, n):
         if not ok:
             continue
         h, w = frame.shape[:2]
-        if w > FRAME_WIDTH:
-            frame = cv2.resize(frame, (FRAME_WIDTH, int(h * FRAME_WIDTH / w)))
-        ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-        if ok:
+        big = cv2.resize(frame, (FRAME_WIDTH, int(h * FRAME_WIDTH / w))) if w > FRAME_WIDTH else frame
+        okb, buf = cv2.imencode(".jpg", big, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        bh, bw = big.shape[:2]
+        TW = 420
+        small = cv2.resize(big, (TW, int(bh * TW / bw))) if bw > TW else big
+        okt, tbuf = cv2.imencode(".jpg", small, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+        if okb:
             frames.append({"idx": len(frames),
                            "t": round(fi / fps, 1) if fps else 0.0,
-                           "b64": base64.b64encode(buf).decode()})
+                           "b64": base64.b64encode(buf).decode(),                       # 1280px → model
+                           "thumb": base64.b64encode(tbuf).decode() if okt else ""})     # 420px → browser
     cap.release()
     if not frames:
         raise ValueError("Could not read any frames from this video.")
@@ -134,51 +139,67 @@ ALIGN_SCHEMA = {
                 "properties": {
                     "step_number": {"type": "integer"},
                     "step_text": {"type": "string"},
-                    "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-                    "flag": {"type": "boolean"},
-                    "warning": {"type": "string"},
+                    "level": {"type": "string", "enum": ["green", "yellow", "red"]},
                     "start_time_s": {"type": "number"},
                     "end_time_s": {"type": "number"},
                     "best_frame_index": {"type": "integer"},
                     "note": {"type": "string"},
                 },
-                "required": ["step_number", "step_text", "confidence", "flag",
-                             "warning", "start_time_s", "end_time_s", "best_frame_index", "note"],
+                "required": ["step_number", "step_text", "level",
+                             "start_time_s", "end_time_s", "best_frame_index", "note"],
             },
         },
     },
     "required": ["observed_summary", "steps"],
 }
 
+DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
+# 0 = Monday (strictest) … 4 = Friday (most relaxed). Only the green↔yellow↔red
+# threshold changes; the "don't penalize unverifiable amounts" rule is fixed.
+STRICTNESS = {
+    0: ("CALIBRATION — STRICT AUDIT (Monday): Be a demanding auditor. Mark 'green' ONLY when you "
+        "can clearly see the action happen. If the action is not clearly visible, mark 'yellow'; if "
+        "a step's action is not clearly visible where you'd expect it in the sequence, lean 'red'. "
+        "Scrutinize order and completeness."),
+    1: ("CALIBRATION — fairly strict (Tuesday): Prefer 'yellow' over 'green' when the evidence is "
+        "only partial. Mark 'green' only when the action is reasonably clear; flag anything you're "
+        "unsure about."),
+    2: ("CALIBRATION — balanced (Wednesday): Mark 'green' when the action is visible or clearly "
+        "plausible, 'yellow' when genuinely unsure, 'red' when an expected action is clearly absent."),
+    3: ("CALIBRATION — lenient (Thursday): Give the benefit of the doubt. Mark 'green' when the "
+        "action plausibly happened; use 'yellow' only for real doubt and 'red' only for clear omissions."),
+    4: ("CALIBRATION — relaxed (Friday): Assume good faith. Mark 'green' whenever the action plausibly "
+        "happened even if not fully confirmable; reserve 'yellow' for genuine uncertainty and 'red' only "
+        "for obvious, unmistakable omissions. Don't nitpick."),
+}
 
-def align(steps, frames):
-    """Advisory check: per-step confidence + gentle 'worth reviewing' warnings (not a pass/fail verdict)."""
+
+def align(steps, frames, strictness=4):
+    """Advisory traffic-light check at a given strictness (0=Mon strict … 4=Fri relaxed)."""
     proto = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
     header = (
-        "You are assisting a human who is reviewing whether a lab protocol was followed in a video. "
-        "You are NOT issuing a pass/fail verdict — you give a confidence estimate per step and raise "
-        "gentle, suggestive warnings worth a quick human look.\n\n"
+        "You are assisting a human reviewing whether a lab protocol was followed in a video. "
+        "You give a traffic-light assessment per step, not a pass/fail verdict.\n\n"
         "PROTOCOL:\n" + proto + "\n\n"
         f"Below are {len(frames)} frames sampled in chronological order from the video, each "
         "preceded by its index and timestamp. Treat them as one continuous clip."
     )
     instruction = (
-        "First, in observed_summary, describe what you actually see in the video (tubes/reagents/"
-        "tools handled, actions, order) — independently of the protocol.\n\n"
-        "Then for EACH protocol step provide:\n"
-        "- confidence: your confidence the step was performed (and performed correctly) from the "
-        "visual evidence — 'high' (clearly see it), 'medium' (consistent with it but not certain), "
-        "'low' (can't really tell).\n"
-        "- flag: true ONLY if the step is genuinely worth a human double-check — it looks possibly "
-        "skipped, out of order, or done incorrectly, OR you truly cannot confirm a critical action. "
-        "Do NOT flag steps that clearly or plausibly happened. Keep flags light-touch — this is a "
-        "warning to glance at, not a strict audit.\n"
-        "- warning: if flag is true, one short, non-accusatory sentence phrased as a suggestion to "
-        "check (e.g. 'Couldn't clearly confirm template DNA from tube T was added — worth a look.'). "
-        "Empty string otherwise.\n"
-        "- start_time_s / end_time_s / best_frame_index: when the step is visible (else 0 and -1).\n"
-        "- note: brief, plain description of what you saw for this step.\n\n"
-        "Be helpful, not pedantic: reserve flags for real concerns. Return every step."
+        "DO NOT penalize what video can't show. You cannot read exact quantities/volumes/"
+        "concentrations (µL, mL, ng) from frames, and you often can't confirm which specific labeled "
+        "tube a pipette drew from. NEVER downgrade a step for an unverifiable amount or reagent "
+        "identity. Judge each step by whether its ACTION (adding a reagent, mixing, spinning, placing "
+        "the tube, etc.) appears to take place.\n\n"
+        + STRICTNESS.get(strictness, STRICTNESS[4]) + "\n\n"
+        "First, in observed_summary, describe what you actually see (tools/tubes/actions, order), "
+        "independently of the protocol.\n\n"
+        "Then assign each protocol step a traffic-light level:\n"
+        "- 'green': done, or probably done — the action is seen or clearly plausible.\n"
+        "- 'yellow': genuinely doubtful — can't tell if it happened, or it looks slightly off / out of order.\n"
+        "- 'red': the step appears COMPLETELY MISSED — the action is absent where expected.\n"
+        "Apply the calibration above to decide how readily to use yellow/red vs green.\n\n"
+        "Also give start_time_s / end_time_s / best_frame_index when the step is visible (else 0 and "
+        "-1), and note: one short, plain, non-accusatory sentence. Return every step."
     )
 
     content = [{"type": "text", "text": header}]
@@ -197,14 +218,12 @@ def align(steps, frames):
     )
     text = next((b.text for b in resp.content if b.type == "text"), "")
     data = json.loads(text)
-    steps_out = []
-    for s in data.get("steps", []):
-        bi = s.get("best_frame_index", -1)
-        thumb = frames[bi]["b64"] if isinstance(bi, int) and 0 <= bi < len(frames) else None
-        steps_out.append({**s, "thumb": thumb})
-    n_flags = sum(1 for s in steps_out if s.get("flag"))
+    steps_out = data.get("steps", [])
+    levels = [s.get("level") for s in steps_out]
     return {"observed_summary": data.get("observed_summary", ""),
-            "n_flags": n_flags,
+            "n_red": levels.count("red"),
+            "n_yellow": levels.count("yellow"),
+            "n_green": levels.count("green"),
             "steps": steps_out}
 
 
@@ -215,36 +234,75 @@ def index():
 
 @app.route("/align", methods=["POST"])
 def align_route():
-    f = request.files.get("video")
-    if not f or not f.filename:
-        return jsonify(error="No video uploaded."), 400
-    steps = parse_steps(request.form.get("protocol", ""))
-    if not steps:
-        return jsonify(error="Paste a protocol (one step per line)."), 400
-    try:
-        n = int(request.form.get("frames", 16))
-    except ValueError:
-        n = 16
-
-    suffix = os.path.splitext(f.filename)[1] or ".mp4"
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    try:
-        f.save(tmp.name)
-        tmp.close()
-        frames, total, duration, fps = sample_frames(tmp.name, n)
-        result = align(steps, frames)
-        return jsonify(n_frames=len(frames), duration=round(duration, 1), **result)
-    except anthropic.APIError as e:
-        return jsonify(error=f"Claude API error: {e}"), 502
-    except json.JSONDecodeError:
-        return jsonify(error="Claude returned an unparseable result; try fewer frames or a shorter protocol."), 502
-    except Exception as e:
-        return jsonify(error=str(e)), 400
-    finally:
+    pfiles = [p for p in request.files.getlist("protocol") if p and p.filename]
+    vfiles = [v for v in request.files.getlist("videos") if v and v.filename]
+    if not pfiles:
+        return jsonify(error="Attach a protocol text file (.txt, one step per line)."), 400
+    proto_text = ""
+    for p in pfiles:
         try:
-            os.unlink(tmp.name)
-        except OSError:
+            proto_text += p.read().decode("utf-8", "replace") + "\n"
+        except Exception:
             pass
+    steps = parse_steps(proto_text)
+    if not steps:
+        return jsonify(error="Couldn't read any steps from the protocol file(s)."), 400
+    if not vfiles:
+        return jsonify(error="Attach at least one video."), 400
+    try:
+        n = int(request.form.get("frames", 20))
+    except ValueError:
+        n = 20
+
+    # 1) sample each video's frames once (local, fast)
+    vids = []
+    for v in vfiles:
+        suffix = os.path.splitext(v.filename)[1] or ".mp4"
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        try:
+            v.save(tmp.name)
+            tmp.close()
+            frames, total, duration, fps = sample_frames(tmp.name, n)
+            vids.append({"filename": v.filename, "frames": frames, "duration": round(duration, 1)})
+        except Exception as e:
+            vids.append({"filename": v.filename, "error": str(e)})
+        finally:
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
+
+    # 2) run all (video × strictness-day) inferences in parallel
+    jobs = [(vi, di) for vi, vd in enumerate(vids) if "error" not in vd for di in range(5)]
+    grid = {}
+    if jobs:
+        with ThreadPoolExecutor(max_workers=min(8, len(jobs))) as ex:
+            futs = {ex.submit(align, steps, vids[vi]["frames"], di): (vi, di) for vi, di in jobs}
+            for fut in as_completed(futs):
+                vi, di = futs[fut]
+                try:
+                    grid[(vi, di)] = fut.result()
+                except anthropic.APIError as e:
+                    grid[(vi, di)] = {"error": f"Claude API error: {e}"}
+                except json.JSONDecodeError:
+                    grid[(vi, di)] = {"error": "Claude returned an unparseable result (try fewer frames)."}
+                except Exception as e:
+                    grid[(vi, di)] = {"error": str(e)}
+
+    # 3) assemble per-video results: 5 days + the shared frame thumbnails
+    results = []
+    for vi, vd in enumerate(vids):
+        if "error" in vd:
+            results.append({"filename": vd["filename"], "error": vd["error"]})
+            continue
+        results.append({
+            "filename": vd["filename"],
+            "n_frames": len(vd["frames"]),
+            "duration": vd["duration"],
+            "thumbs": [f["thumb"] for f in vd["frames"]],
+            "days": {DAYS[di]: grid.get((vi, di), {"error": "no result"}) for di in range(5)},
+        })
+    return jsonify(steps_parsed=steps, results=results)
 
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
@@ -268,63 +326,89 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  .st{font-weight:600} .tm{font-weight:600;font-size:13px;margin:2px 0}
  .ev{color:#5c7079;font-size:13px}
  .banner{padding:11px 14px;border-radius:8px;font-weight:600;margin-bottom:10px}
- .ok{background:#e2f4f0;color:#0e7c86} .warn{background:#fff4df;color:#9a6b15}
- .warntext{color:#9a6b15;font-size:13px;font-weight:500;margin:2px 0}
- .badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:1px}
- .b-high{background:#e2f4f0;color:#0e7c86} .b-medium{background:#eaf2f4;color:#3a7a86}
- .b-low{background:#eef0f1;color:#7a8a90} .b-flag{background:#fff1d6;color:#a9701b}
- .review{outline:2px solid #f3d28a;outline-offset:-2px;border-radius:8px;padding-left:10px}
+ .ok{background:#e2f4f0;color:#0e7c86} .warn{background:#fff4df;color:#9a6b15} .alert{background:#fde7e4;color:#c0392b}
+ .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:1px}
+ .b-green{background:#e2f4f0;color:#0e7c86} .b-yellow{background:#fff1d6;color:#a9701b} .b-red{background:#fde7e4;color:#c0392b}
+ .l-yellow{outline:2px solid #f3d28a} .l-red{outline:2px solid #f0b3aa}
+ .l-yellow,.l-red{outline-offset:-2px;border-radius:8px;padding-left:10px}
+ .legend{color:#5c7079;font-size:12px;margin-top:6px}
+ .mood{font-weight:700;font-size:16px;margin:10px 0 2px}
+ input[type=range]{width:100%;accent-color:#0e7c86;cursor:pointer}
+ .ticks{display:flex;justify-content:space-between;font-size:11px;color:#5c7079;margin-top:3px}
+ .ticks span{flex:1;text-align:center}
  details{margin-top:10px;font-size:13px;color:#5c7079} summary{cursor:pointer;font-weight:600}
- #meta{color:#5c7079;font-size:12px;margin-bottom:6px}
+ .meta{color:#5c7079;font-size:12px;margin-bottom:6px} .vid-h{font-weight:700;font-size:15px;margin:0 0 6px}
  .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff;border-top-color:transparent;
       border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px}
  @keyframes s{to{transform:rotate(360deg)}}
 </style></head><body>
-<h1>🎬↔📋 Protocol–Video Alignment</h1>
-<p class="sub">Paste a protocol and upload a video; Claude (<b>{{model}}</b>) finds the frames for each step.</p>
+<h1>🎬↔📋 Protocol–Video Review</h1>
+<p class="sub">Attach a protocol file and one or more videos; Claude (<b>{{model}}</b>) reviews each video against the protocol, step by step.</p>
 <div class="card">
  <form id="f">
-  <label>Protocol — one step per line</label>
-  <textarea name="protocol" placeholder="1. Add Master Mix to the tube&#10;2. Add forward primer&#10;3. Add reverse primer&#10;4. Add template DNA&#10;5. Flick to mix and quick-spin&#10;6. Place in thermocycler"></textarea>
+  <label>Protocol file(s) — a .txt with one step per line (multiple files are merged)</label>
+  <input type="file" name="protocol" accept=".txt,.md,text/plain" multiple required>
   <div class="row">
-   <div><label>Video file (.mp4 / .mov)</label><input type="file" name="video" accept="video/*" required></div>
-   <div><label>Frames (max {{max_frames}})</label><input type="number" name="frames" value="20" min="2" max="{{max_frames}}" style="width:90px"></div>
+   <div><label>Video file(s) — one or more .mp4/.mov (each reviewed separately)</label>
+        <input type="file" name="videos" accept="video/*" multiple required></div>
+   <div><label>Frames / video (max {{max_frames}})</label>
+        <input type="number" name="frames" value="20" min="2" max="{{max_frames}}" style="width:100px"></div>
   </div>
-  <button id="b" type="submit">Review video</button>
+  <button id="b" type="submit">Review video(s)</button>
  </form>
 </div>
-<div class="card" id="result" style="display:none">
- <div id="meta"></div><div id="banner"></div><div id="steps"></div>
- <details id="obs" style="display:none"><summary>What Claude observed in the video</summary><div id="obstext"></div></details>
-</div>
+<div id="out"></div>
 <script>
-const f=document.getElementById('f'),b=document.getElementById('b'),res=document.getElementById('result'),
-      steps=document.getElementById('steps'),meta=document.getElementById('meta'),banner=document.getElementById('banner'),
-      obs=document.getElementById('obs'),obstext=document.getElementById('obstext');
+const f=document.getElementById('f'),b=document.getElementById('b'),out=document.getElementById('out');
 function fmt(t){t=Math.round(t);return (t<60?t+'s':Math.floor(t/60)+'m'+String(t%60).padStart(2,'0')+'s');}
-const CONF={high:'likely done',medium:'probably done',low:'unconfirmed'};
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+const DAYS=['monday','tuesday','wednesday','thursday','friday'];
+const MOOD=['🧐 Monday — strict audit','🤨 Tuesday — picky','🙂 Wednesday — balanced','😌 Thursday — easygoing','😎 Friday — relaxed'];
+const DOT={green:'🟢',yellow:'🟡',red:'🔴'},LBL={green:'done / probably done',yellow:'uncertain',red:'appears missed'};
+let DATA=null, dayIdx=4;   // default Friday (most relaxed)
+function renderStep(v,s){
+ const lvl=(s.level in DOT)?s.level:'yellow';
+ const thumb=(s.best_frame_index>=0 && v.thumbs[s.best_frame_index])?v.thumbs[s.best_frame_index]:null;
+ const img=thumb?`<img src="data:image/jpeg;base64,${thumb}">`:`<div class="noimg">${DOT[lvl]} ${lvl=='red'?'not seen':'no clear frame'}</div>`;
+ const tm=(s.best_frame_index>=0)?`<div class="tm" style="color:#0e7c86">⏱ ${fmt(s.start_time_s)} – ${fmt(s.end_time_s)}</div>`:'';
+ const badge=`<span class="badge b-${lvl}">${DOT[lvl]} ${LBL[lvl]}</span>`;
+ return `<div class="step l-${lvl}">${img}<div><div class="st">${s.step_number}. ${esc(s.step_text)}${badge}</div>`+
+        `${tm}<div class="ev">${esc(s.note)}</div></div></div>`;}
+function renderVideo(v){
+ if(v.error) return `<div class="card"><div class="vid-h">🎬 ${esc(v.filename)}</div><div>⚠️ ${esc(v.error)}</div></div>`;
+ const day=v.days[DAYS[dayIdx]]||{};
+ if(day.error) return `<div class="card"><div class="vid-h">🎬 ${esc(v.filename)}</div><div>⚠️ ${esc(day.error)}</div></div>`;
+ const banner=day.n_red?`<div class="banner alert">🔴 ${day.n_red} step${day.n_red>1?'s':''} appear missed`+
+                        (day.n_yellow?` · 🟡 ${day.n_yellow} uncertain`:'')+`</div>`
+   :day.n_yellow?`<div class="banner warn">🟡 ${day.n_yellow} step${day.n_yellow>1?'s':''} uncertain — worth a glance</div>`
+   :`<div class="banner ok">🟢 All steps look done</div>`;
+ const obs=day.observed_summary?`<details><summary>What Claude observed</summary><div>${esc(day.observed_summary)}</div></details>`:'';
+ return `<div class="card"><div class="vid-h">🎬 ${esc(v.filename)}</div>`+
+        `<div class="meta">${v.n_frames} frames · ~${fmt(v.duration)}</div>${banner}`+
+        (day.steps||[]).map(s=>renderStep(v,s)).join('')+obs+`</div>`;}
+function renderVids(){document.getElementById('vids').innerHTML=DATA.results.map(renderVideo).join('');}
+function renderAll(){
+ const proto=`<div class="card"><div class="vid-h">📋 Protocol (${DATA.steps_parsed.length} steps)</div>`+
+   `<ol style="margin:0;padding-left:20px;font-size:13px;color:#39535b">`+
+   DATA.steps_parsed.map(s=>`<li>${esc(s)}</li>`).join('')+`</ol>`+
+   `<div class="legend">🟢 done / probably done · 🟡 uncertain · 🔴 appears missed</div></div>`;
+ const slider=`<div class="card"><div class="vid-h">🗓️ Strictness dial</div>`+
+   `<input type="range" id="day" min="0" max="4" value="${dayIdx}">`+
+   `<div class="ticks"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div>`+
+   `<div class="mood" id="mood">${MOOD[dayIdx]}</div>`+
+   `<div class="legend">Monday = strict, Friday = relaxed. All 5 levels were evaluated in parallel — slide to compare instantly.</div></div>`;
+ out.innerHTML=proto+slider+`<div id="vids"></div>`;
+ const day=document.getElementById('day');
+ day.oninput=()=>{dayIdx=+day.value;document.getElementById('mood').textContent=MOOD[dayIdx];renderVids();};
+ renderVids();}
 f.onsubmit=async e=>{e.preventDefault();
- b.disabled=true;b.innerHTML='<span class="spin"></span>Checking…';
- res.style.display='block';meta.textContent='';banner.innerHTML='';obs.style.display='none';
- steps.innerHTML='Sampling frames and reviewing the protocol against the video…';
+ b.disabled=true;b.innerHTML='<span class="spin"></span>Reviewing (5 strictness levels in parallel)…';
+ out.innerHTML='<div class="card">Sampling frames and running all 5 strictness levels per video in parallel — please wait…</div>';
  try{const r=await fetch('/align',{method:'POST',body:new FormData(f)});const d=await r.json();
-  if(!r.ok){steps.innerHTML='⚠️ '+(d.error||'Error');b.disabled=false;b.textContent='Review video';return;}
-  meta.textContent=`${d.n_frames} frames sampled · ~${fmt(d.duration)} clip`;
-  if(!d.n_flags){banner.innerHTML='<div class="banner ok">✓ Looks complete — no steps flagged for review</div>';}
-  else{banner.innerHTML=`<div class="banner warn">⚠ ${d.n_flags} step${d.n_flags>1?'s':''} worth a quick review (suggestions, not failures)</div>`;}
-  steps.innerHTML='';
-  d.steps.forEach(s=>{const div=document.createElement('div');div.className='step'+(s.flag?' review':'');
-   const img=s.thumb?`<img src="data:image/jpeg;base64,${s.thumb}">`:`<div class="noimg">no clear frame</div>`;
-   const tm=(s.best_frame_index>=0)?`<div class="tm" style="color:#0e7c86">⏱ ${fmt(s.start_time_s)} – ${fmt(s.end_time_s)}</div>`:'';
-   const badge=s.flag?`<span class="badge b-flag">⚠ worth a review</span>`
-                     :`<span class="badge b-${s.confidence}">${CONF[s.confidence]||s.confidence}</span>`;
-   const warn=s.flag&&s.warning?`<div class="warntext">💡 ${s.warning}</div>`:'';
-   div.innerHTML=`${img}<div><div class="st">${s.step_number}. ${s.step_text}${badge}</div>`+
-                 `${tm}${warn}<div class="ev">${s.note||''}</div></div>`;
-   steps.appendChild(div);});
-  if(d.observed_summary){obstext.textContent=d.observed_summary;obs.style.display='block';}
- }catch(err){steps.innerHTML='⚠️ '+err;}
- b.disabled=false;b.textContent='Review video';};
+  if(!r.ok){out.innerHTML=`<div class="card">⚠️ ${esc(d.error||'Error')}</div>`;b.disabled=false;b.textContent='Review video(s)';return;}
+  DATA=d;renderAll();
+ }catch(err){out.innerHTML=`<div class="card">⚠️ ${esc(String(err))}</div>`;}
+ b.disabled=false;b.textContent='Review video(s)';};
 </script></body></html>"""
 
 
