@@ -3,6 +3,8 @@ so Claude vs VLM can be shown side-by-side. Lazy-loads the model on first use.""
 import base64, io, json, re, threading
 from PIL import Image
 
+import prompts
+
 VLM_MODEL = "Qwen/Qwen2.5-VL-3B-Instruct"
 VLM_MAX_FRAMES = 10          # keep vision tokens in T4 memory budget
 VLM_FRAME_PX = 640           # resize long side before sending
@@ -70,25 +72,9 @@ def align_vlm(steps, frames):
     from qwen_vl_utils import process_vision_info
 
     fr = _subsample(frames)
-    proto = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
-    header = (
-        "You are assisting a human reviewing whether a lab protocol was followed in a video. "
-        "You are NOT issuing a pass/fail verdict — you give a confidence per step and raise gentle "
-        "warnings worth a quick human look.\n\nPROTOCOL:\n" + proto + "\n\n"
-        f"Below are {len(fr)} frames sampled in chronological order from the video, each preceded by "
-        "its index and timestamp. Treat them as one continuous clip."
-    )
-    instruction = (
-        "First, in observed_summary, describe what you actually see (tubes/reagents/tools, actions, "
-        "order) independently of the protocol. Then for EACH protocol step give: confidence "
-        "('high'|'medium'|'low'); flag (true only if possibly skipped, out of order, or done wrong, "
-        "or a critical action you cannot confirm); warning (one short suggestion if flag else ''); "
-        "start_time_s / end_time_s / best_frame_index (the [frame N] index, else 0/0/-1); note "
-        "(brief what you saw).\n\n"
-        'Return ONLY JSON, no prose, of the form: {"observed_summary": "...", "steps": '
-        '[{"step_number": 1, "step_text": "...", "confidence": "high", "flag": false, "warning": "", '
-        '"start_time_s": 0, "end_time_s": 0, "best_frame_index": -1, "note": "..."}]}'
-    )
+    # IDENTICAL task spec to Claude (app.align) — only the JSON-format reminder is VLM-specific.
+    header = prompts.build_header(steps, len(fr))
+    instruction = prompts.INSTRUCTION + prompts.VLM_JSON_SUFFIX
 
     content = [{"type": "text", "text": header}]
     for f in fr:

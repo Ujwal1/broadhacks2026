@@ -34,6 +34,9 @@ import cv2
 import anthropic
 from flask import Flask, request, jsonify, render_template_string
 
+import prompts
+import metrics
+
 MODEL = "claude-opus-4-8"
 MAX_FRAMES = 30
 FRAME_WIDTH = 1280       # higher res so small tube/reagent labels are legible
@@ -174,33 +177,8 @@ ALIGN_SCHEMA = {
 
 def align(steps, frames):
     """Advisory check: per-step confidence + gentle 'worth reviewing' warnings (not a pass/fail verdict)."""
-    proto = "\n".join(f"{i+1}. {s}" for i, s in enumerate(steps))
-    header = (
-        "You are assisting a human who is reviewing whether a lab protocol was followed in a video. "
-        "You are NOT issuing a pass/fail verdict — you give a confidence estimate per step and raise "
-        "gentle, suggestive warnings worth a quick human look.\n\n"
-        "PROTOCOL:\n" + proto + "\n\n"
-        f"Below are {len(frames)} frames sampled in chronological order from the video, each "
-        "preceded by its index and timestamp. Treat them as one continuous clip."
-    )
-    instruction = (
-        "First, in observed_summary, describe what you actually see in the video (tubes/reagents/"
-        "tools handled, actions, order) — independently of the protocol.\n\n"
-        "Then for EACH protocol step provide:\n"
-        "- confidence: your confidence the step was performed (and performed correctly) from the "
-        "visual evidence — 'high' (clearly see it), 'medium' (consistent with it but not certain), "
-        "'low' (can't really tell).\n"
-        "- flag: true ONLY if the step is genuinely worth a human double-check — it looks possibly "
-        "skipped, out of order, or done incorrectly, OR you truly cannot confirm a critical action. "
-        "Do NOT flag steps that clearly or plausibly happened. Keep flags light-touch — this is a "
-        "warning to glance at, not a strict audit.\n"
-        "- warning: if flag is true, one short, non-accusatory sentence phrased as a suggestion to "
-        "check (e.g. 'Couldn't clearly confirm template DNA from tube T was added — worth a look.'). "
-        "Empty string otherwise.\n"
-        "- start_time_s / end_time_s / best_frame_index: when the step is visible (else 0 and -1).\n"
-        "- note: brief, plain description of what you saw for this step.\n\n"
-        "Be helpful, not pedantic: reserve flags for real concerns. Return every step."
-    )
+    header = prompts.build_header(steps, len(frames))
+    instruction = prompts.INSTRUCTION
 
     content = [{"type": "text", "text": header}]
     for f in frames:
@@ -288,8 +266,14 @@ def align_route():
         tmp.close()
         frames, total, duration, fps = sample_frames(tmp.name, n)
         results = {eng: run_engine(eng, steps, frames) for eng in engines}  # same frames -> fair
+        # when both ran, quantify how much they agree (no ground truth needed)
+        agreement = None
+        if "claude" in results and "vlm" in results \
+                and not results["claude"].get("error") and not results["vlm"].get("error"):
+            agreement = metrics.cross_engine_agreement(results["claude"]["steps"],
+                                                       results["vlm"]["steps"])
         return jsonify(n_frames=len(frames), duration=round(duration, 1),
-                       engines=engines, results=results)
+                       engines=engines, results=results, agreement=agreement)
     except anthropic.APIError as e:
         return jsonify(error=f"Claude API error: {e}"), 502
     except Exception as e:
@@ -330,6 +314,9 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  .ev{color:#5c7079;font-size:12.5px;line-height:1.4}
  .banner{padding:9px 12px;border-radius:8px;font-weight:600;margin-bottom:10px;font-size:13px}
  .ok{background:#e2f4f0;color:#0e7c86} .warn{background:#fff4df;color:#9a6b15} .err{background:#fde8e8;color:#b3261e}
+ .agree{display:flex;gap:22px;flex-wrap:wrap;background:#eef3fb;border:1px solid #d8e2f3;border-radius:8px;padding:11px 15px;margin-bottom:12px}
+ .agree .m{font-size:12px;color:#5c7079} .agree b{font-size:17px;color:#3a3f9a;display:block;font-weight:700}
+ .nav{font-size:13px;margin:8px 0 0} .nav a{color:#0e7c86;text-decoration:none;font-weight:600} .nav a:hover{text-decoration:underline}
  .warntext{color:#9a6b15;font-size:12.5px;font-weight:500;margin:2px 0}
  .badge{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:1px}
  .b-high{background:#e2f4f0;color:#0e7c86} .b-medium{background:#eaf2f4;color:#3a7a86}
@@ -346,6 +333,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <p class="sub">Paste a protocol and upload a video. The same frames + protocol are reviewed by
 <b>Claude ({{model}})</b>{% if vlm_available %} and a local open VLM (<b>{{vlm_label}}</b>){% endif %},
 shown side by side for comparison.</p>
+<p class="nav"><a href="/benchmark">📊 View the Claude vs VLM benchmark →</a> &nbsp;(scored against BioVL-QR ground-truth timestamps)</p>
 <div class="card">
  <form id="f">
   <label>Protocol — one step per line</label>
@@ -365,11 +353,11 @@ shown side by side for comparison.</p>
  </form>
 </div>
 <div class="card" id="result" style="display:none">
- <div id="meta"></div><div class="cols" id="cols"></div>
+ <div id="meta"></div><div id="agree"></div><div class="cols" id="cols"></div>
 </div>
 <script>
 const f=document.getElementById('f'),b=document.getElementById('b'),res=document.getElementById('result'),
-      cols=document.getElementById('cols'),meta=document.getElementById('meta');
+      cols=document.getElementById('cols'),meta=document.getElementById('meta'),agree=document.getElementById('agree');
 function fmt(t){t=Math.round(t);return (t<60?t+'s':Math.floor(t/60)+'m'+String(t%60).padStart(2,'0')+'s');}
 const CONF={high:'likely done',medium:'probably done',low:'unconfirmed'};
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
@@ -397,15 +385,113 @@ function renderEngine(key,r){
 
 f.onsubmit=async e=>{e.preventDefault();
  b.disabled=true;b.innerHTML='<span class="spin"></span>Reviewing…';
- res.style.display='block';meta.textContent='';
+ res.style.display='block';meta.textContent='';agree.innerHTML='';
  cols.innerHTML='<div>Sampling frames and reviewing the protocol against the video… (the local VLM can take ~30–60s)</div>';
  try{const r=await fetch('/align',{method:'POST',body:new FormData(f)});const d=await r.json();
   if(!r.ok){cols.innerHTML='⚠️ '+esc(d.error||'Error');b.disabled=false;b.textContent='Review video';return;}
   meta.textContent=`${d.n_frames} frames sampled · ~${fmt(d.duration)} clip · engines: ${d.engines.join(' vs ')}`;
+  if(d.agreement){const a=d.agreement;
+   agree.innerHTML='<div class="agree"><div style="width:100%" class="m">Claude ↔ VLM agreement on this clip:</div>'+
+    `<div><b>${Math.round(a.mean_iou*100)}%</b><span class="m">time-range overlap (IoU)</span></div>`+
+    `<div><b>${Math.round(a.flag_agreement*100)}%</b><span class="m">flag agreement</span></div>`+
+    `<div><b>${a.mean_start_diff_s==null?'–':a.mean_start_diff_s+'s'}</b><span class="m">mean start-time gap</span></div>`+
+    `<div><b>${a.n_steps}</b><span class="m">steps compared</span></div></div>`;}
   cols.innerHTML='';
   d.engines.forEach(k=>{const div=document.createElement('div');div.innerHTML=renderEngine(k,d.results[k]);cols.appendChild(div);});
  }catch(err){cols.innerHTML='⚠️ '+esc(''+err);}
  b.disabled=false;b.textContent='Review video';};
+</script></body></html>"""
+
+
+@app.route("/benchmark")
+def benchmark_page():
+    path = os.path.join(HERE, "benchmark_results.json")
+    data = None
+    if os.path.isfile(path):
+        try:
+            with open(path) as fh:
+                data = json.load(fh)
+        except Exception:
+            data = None
+    return render_template_string(BENCH_PAGE, data_json=json.dumps(data))
+
+
+BENCH_PAGE = """<!doctype html><html><head><meta charset="utf-8">
+<title>Claude vs VLM — Benchmark</title>
+<style>
+ body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:1100px;
+      margin:34px auto;padding:0 20px;color:#17323a;background:#f7fafb}
+ h1{font-size:23px;margin-bottom:2px} h2{font-size:16px;margin:0 0 12px}
+ .sub{color:#5c7079;margin-top:0;font-size:14px} .nav{font-size:13px;margin:8px 0 0}
+ .nav a{color:#0e7c86;text-decoration:none;font-weight:600} .nav a:hover{text-decoration:underline}
+ .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(11,32,39,.07);margin-top:16px}
+ .meta{color:#5c7079;font-size:13px} code{background:#eef0f1;padding:2px 6px;border-radius:5px}
+ table{border-collapse:collapse;width:100%;font-size:13px}
+ th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef4f5;vertical-align:top}
+ th{color:#5c7079;font-weight:600} td:first-child{font-weight:600;white-space:nowrap}
+ .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+ .bar{height:5px;background:#eef0f1;border-radius:3px;margin-top:3px;overflow:hidden;min-width:60px}
+ .fill{height:100%}
+ .vid{margin:14px 0;padding-top:12px;border-top:1px solid #eef4f5}
+ .vt{font-weight:600;font-size:13px;margin-bottom:6px} .m{color:#9bb1b8;font-weight:400}
+ .trk{display:flex;align-items:center;gap:10px;margin:3px 0}
+ .lab{width:158px;font-size:11.5px;color:#5c7079;text-align:right;flex:none}
+ .axis{position:relative;height:18px;flex:1;background:#f3f6f7;border-radius:4px}
+ .seg{position:absolute;top:0;height:18px;border-radius:3px;color:#fff;font-size:10px;
+      line-height:18px;text-align:center;overflow:hidden}
+</style></head><body>
+<h1>📊 Claude vs VLM — Step-Localization Benchmark</h1>
+<p class="sub">Both engines get the same protocol + sampled frames; predicted per-step time-ranges are
+scored against BioVL-QR ground-truth timestamps.</p>
+<p class="nav"><a href="/">← Back to the live comparison</a></p>
+<div id="root"></div>
+<script>
+const DATA = {{ data_json|safe }};
+const root=document.getElementById('root');
+const ENGCLR={claude:'#0e7c86',vlm:'#5b54c9'};
+const PAL=['#0e7c86','#e07b39','#5b54c9','#3a9a6b','#b3508a','#9a6b15','#3a7a86','#a9701b','#7a8a90','#b3261e'];
+function pct(x){return x==null?'–':Math.round(x*100)+'%';}
+function trackHtml(label,segs,dur){
+ let s=`<div class="trk"><div class="lab">${label}</div><div class="axis">`;
+ segs.forEach(g=>{const left=100*g.s/dur,w=Math.max(1.3,100*(g.e-g.s)/dur);
+  s+=`<div class="seg" title="step ${g.i+1}: ${g.s}-${g.e}s" style="left:${left}%;width:${w}%;background:${PAL[g.i%PAL.length]}">${g.i+1}</div>`;});
+ return s+`</div></div>`;
+}
+if(!DATA){
+ root.innerHTML='<div class="card">No benchmark results yet. Generate them:<br><br><code>ANTHROPIC_API_KEY_FILE=anthropic_key.txt python benchmark.py --per-cat 1 --frames 24</code></div>';
+}else{
+ const A=DATA.aggregate,cfg=DATA.config,eng=Object.keys(A);
+ const METR=[['mean_iou','Temporal IoU',1],['start_within_10s','Start ±10s',1],['start_within_5s','Start ±5s',1],['localized_frac','Localized',1],['ordering_acc','Ordering',1],['latency_s','Latency (s)',0]];
+ let h=`<div class="card"><div class="meta"><b>${cfg.claude_model}</b> vs <b>${cfg.vlm_model}</b> · ${cfg.frames} frames/clip · ${A[eng[0]].n_videos} videos · categories: ${cfg.categories.join(', ')}</div></div>`;
+ h+='<div class="card"><h2>Leaderboard — vs BioVL-QR ground truth</h2><table><tr><th>Engine</th>'+METR.map(m=>`<th>${m[1]}</th>`).join('')+'</tr>';
+ eng.forEach(e=>{h+=`<tr><td><span class="dot" style="background:${ENGCLR[e]||'#888'}"></span>${e}</td>`;
+  METR.forEach(m=>{const v=A[e][m[0]];const disp=m[2]?pct(v):(v==null?'–':v);
+   const bar=(m[2]&&v!=null)?`<div class="bar"><div class="fill" style="width:${Math.round(v*100)}%;background:${ENGCLR[e]}"></div></div>`:'';
+   h+=`<td>${disp}${bar}</td>`;});
+  h+='</tr>';});
+ h+='</table><div class="meta" style="margin-top:8px">Higher is better except latency. IoU = overlap of predicted vs true step time-range.</div></div>';
+ if(DATA.by_category){
+  h+='<div class="card"><h2>By category — IoU / Start ±10s</h2><table><tr><th>Category</th>'+eng.map(e=>`<th>${e}</th>`).join('')+'</tr>';
+  cfg.categories.forEach(cat=>{h+=`<tr><td>${cat}</td>`;
+   eng.forEach(e=>{const c=(DATA.by_category[e]||{})[cat];h+=`<td>${c?pct(c.mean_iou)+' / '+pct(c.start_within_10s):'–'}</td>`;});
+   h+='</tr>';});
+  h+='</table></div>';
+ }
+ const byVid={};
+ DATA.runs.forEach(r=>{if(!byVid[r.video])byVid[r.video]={category:r.category,engines:{}};byVid[r.video].engines[r.engine]=r;});
+ h+='<div class="card"><h2>Per-video timelines — ground truth vs predictions</h2>';
+ Object.keys(byVid).forEach(vid=>{const v=byVid[vid],any=Object.values(v.engines)[0],gt=any.perstep.map(p=>p.gt);
+  let dur=0;gt.forEach(g=>dur=Math.max(dur,g[1]));
+  Object.values(v.engines).forEach(r=>r.perstep.forEach(p=>{if(p.pred)dur=Math.max(dur,p.pred[1]);}));dur=dur||1;
+  h+=`<div class="vid"><div class="vt">${v.category} / ${vid} <span class="m">(${gt.length} steps · ${Math.round(dur)}s)</span></div>`;
+  h+=trackHtml('ground truth',gt.map((g,i)=>({i:i,s:g[0],e:g[1]})),dur);
+  eng.forEach(e=>{const r=v.engines[e];if(!r)return;
+   const segs=r.perstep.map((p,i)=>p.pred?{i:i,s:p.pred[0],e:p.pred[1]}:null).filter(Boolean);
+   h+=trackHtml(e+' · IoU '+pct(r.mean_iou),segs,dur);});
+  h+='</div>';});
+ h+='</div>';
+ root.innerHTML=h;
+}
 </script></body></html>"""
 
 

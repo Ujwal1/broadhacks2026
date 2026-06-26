@@ -1,0 +1,967 @@
+{
+ "config": {
+  "data": "/home/jovyan/workbench/BioVL-QR_zip",
+  "categories": [
+   "extractdna",
+   "gel",
+   "electrophoresis",
+   "purifydna"
+  ],
+  "per_cat": 1,
+  "frames": 24,
+  "claude_model": "claude-opus-4-8",
+  "vlm_model": "Qwen2.5-VL-3B-Instruct"
+ },
+ "runs": [
+  {
+   "category": "extractdna",
+   "video": "extractdna_1",
+   "engine": "claude",
+   "latency_s": 38.7,
+   "n_flags": 1,
+   "n_steps": 5,
+   "mean_iou": 0.485,
+   "localized_frac": 1.0,
+   "start_within_5s": 0.4,
+   "start_within_10s": 0.6,
+   "ordering_acc": 0.75,
+   "perstep": [
+    {
+     "gt": [
+      1.0,
+      37.0
+     ],
+     "pred": [
+      13.1,
+      39.2
+     ]
+    },
+    {
+     "gt": [
+      40.0,
+      47.0
+     ],
+     "pred": [
+      78.4,
+      85.0
+     ]
+    },
+    {
+     "gt": [
+      55.0,
+      67.0
+     ],
+     "pred": [
+      58.8,
+      71.9
+     ]
+    },
+    {
+     "gt": [
+      77.0,
+      113.0
+     ],
+     "pred": [
+      85.0,
+      104.6
+     ]
+    },
+    {
+     "gt": [
+      122.0,
+      146.0
+     ],
+     "pred": [
+      124.2,
+      150.3
+     ]
+    }
+   ]
+  },
+  {
+   "category": "extractdna",
+   "video": "extractdna_1",
+   "engine": "vlm",
+   "latency_s": 36.1,
+   "n_flags": 0,
+   "n_steps": 5,
+   "mean_iou": 0.372,
+   "localized_frac": 1.0,
+   "start_within_5s": 0.0,
+   "start_within_10s": 0.4,
+   "ordering_acc": 1.0,
+   "perstep": [
+    {
+     "gt": [
+      1.0,
+      37.0
+     ],
+     "pred": [
+      12.0,
+      31.5
+     ]
+    },
+    {
+     "gt": [
+      40.0,
+      47.0
+     ],
+     "pred": [
+      32.7,
+      52.3
+     ]
+    },
+    {
+     "gt": [
+      55.0,
+      67.0
+     ],
+     "pred": [
+      65.4,
+      85.0
+     ]
+    },
+    {
+     "gt": [
+      77.0,
+      113.0
+     ],
+     "pred": [
+      98.0,
+      117.6
+     ]
+    },
+    {
+     "gt": [
+      122.0,
+      146.0
+     ],
+     "pred": [
+      130.7,
+      150.3
+     ]
+    }
+   ]
+  },
+  {
+   "category": "gel",
+   "video": "gel_1",
+   "engine": "claude",
+   "latency_s": 24.3,
+   "n_flags": 3,
+   "n_steps": 6,
+   "mean_iou": 0.356,
+   "localized_frac": 1.0,
+   "start_within_5s": 0.167,
+   "start_within_10s": 0.333,
+   "ordering_acc": 1.0,
+   "perstep": [
+    {
+     "gt": [
+      2.0,
+      32.0
+     ],
+     "pred": [
+      22.7,
+      22.7
+     ]
+    },
+    {
+     "gt": [
+      33.0,
+      48.0
+     ],
+     "pred": [
+      45.3,
+      45.3
+     ]
+    },
+    {
+     "gt": [
+      52.0,
+      188.0
+     ],
+     "pred": [
+      45.3,
+      158.7
+     ]
+    },
+    {
+     "gt": [
+      203.0,
+      221.0
+     ],
+     "pred": [
+      181.4,
+      204.1
+     ]
+    },
+    {
+     "gt": [
+      229.0,
+      458.0
+     ],
+     "pred": [
+      226.8,
+      453.5
+     ]
+    },
+    {
+     "gt": [
+      460.0,
+      518.0
+     ],
+     "pred": [
+      476.2,
+      498.8
+     ]
+    }
+   ]
+  },
+  {
+   "category": "gel",
+   "video": "gel_1",
+   "engine": "vlm",
+   "latency_s": 111.4,
+   "n_flags": 0,
+   "n_steps": 6,
+   "mean_iou": 0.0,
+   "localized_frac": 0.0,
+   "start_within_5s": 0.0,
+   "start_within_10s": 0.0,
+   "ordering_acc": 1.0,
+   "perstep": [
+    {
+     "gt": [
+      2.0,
+      32.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      33.0,
+      48.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      52.0,
+      188.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      203.0,
+      221.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      229.0,
+      458.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      460.0,
+      518.0
+     ],
+     "pred": null
+    }
+   ]
+  },
+  {
+   "category": "electrophoresis",
+   "video": "electrophoresis_1",
+   "engine": "claude",
+   "latency_s": 27.8,
+   "n_flags": 3,
+   "n_steps": 7,
+   "mean_iou": 0.156,
+   "localized_frac": 1.0,
+   "start_within_5s": 0.143,
+   "start_within_10s": 0.286,
+   "ordering_acc": 0.833,
+   "perstep": [
+    {
+     "gt": [
+      3.0,
+      10.0
+     ],
+     "pred": [
+      63.0,
+      84.0
+     ]
+    },
+    {
+     "gt": [
+      17.0,
+      79.0
+     ],
+     "pred": [
+      21.0,
+      42.0
+     ]
+    },
+    {
+     "gt": [
+      93.0,
+      236.0
+     ],
+     "pred": [
+      273.0,
+      315.0
+     ]
+    },
+    {
+     "gt": [
+      244.0,
+      356.0
+     ],
+     "pred": [
+      336.0,
+      336.1
+     ]
+    },
+    {
+     "gt": [
+      357.0,
+      396.0
+     ],
+     "pred": [
+      378.1,
+      420.1
+     ]
+    },
+    {
+     "gt": [
+      400.0,
+      408.0
+     ],
+     "pred": [
+      420.1,
+      441.1
+     ]
+    },
+    {
+     "gt": [
+      436.0,
+      481.0
+     ],
+     "pred": [
+      441.1,
+      462.1
+     ]
+    }
+   ]
+  },
+  {
+   "category": "electrophoresis",
+   "video": "electrophoresis_1",
+   "engine": "vlm",
+   "latency_s": 42.8,
+   "n_flags": 0,
+   "n_steps": 7,
+   "mean_iou": 0.114,
+   "localized_frac": 1.0,
+   "start_within_5s": 0.286,
+   "start_within_10s": 0.286,
+   "ordering_acc": 1.0,
+   "perstep": [
+    {
+     "gt": [
+      3.0,
+      10.0
+     ],
+     "pred": [
+      0.0,
+      12.0
+     ]
+    },
+    {
+     "gt": [
+      17.0,
+      79.0
+     ],
+     "pred": [
+      12.0,
+      31.5
+     ]
+    },
+    {
+     "gt": [
+      93.0,
+      236.0
+     ],
+     "pred": [
+      31.5,
+      42.0
+     ]
+    },
+    {
+     "gt": [
+      244.0,
+      356.0
+     ],
+     "pred": [
+      42.0,
+      105.0
+     ]
+    },
+    {
+     "gt": [
+      357.0,
+      396.0
+     ],
+     "pred": [
+      105.0,
+      210.0
+     ]
+    },
+    {
+     "gt": [
+      400.0,
+      408.0
+     ],
+     "pred": [
+      210.0,
+      252.1
+     ]
+    },
+    {
+     "gt": [
+      436.0,
+      481.0
+     ],
+     "pred": [
+      252.1,
+      420.1
+     ]
+    }
+   ]
+  },
+  {
+   "category": "purifydna",
+   "video": "purifydna_1",
+   "engine": "claude",
+   "latency_s": 41.6,
+   "n_flags": 3,
+   "n_steps": 19,
+   "mean_iou": 0.14,
+   "localized_frac": 1.0,
+   "start_within_5s": 0.211,
+   "start_within_10s": 0.368,
+   "ordering_acc": 0.833,
+   "perstep": [
+    {
+     "gt": [
+      5.0,
+      39.0
+     ],
+     "pred": [
+      19.0,
+      56.9
+     ]
+    },
+    {
+     "gt": [
+      42.0,
+      50.0
+     ],
+     "pred": [
+      37.9,
+      75.8
+     ]
+    },
+    {
+     "gt": [
+      60.0,
+      91.0
+     ],
+     "pred": [
+      151.7,
+      170.7
+     ]
+    },
+    {
+     "gt": [
+      92.0,
+      102.0
+     ],
+     "pred": [
+      94.8,
+      113.8
+     ]
+    },
+    {
+     "gt": [
+      104.0,
+      111.0
+     ],
+     "pred": [
+      113.8,
+      113.8
+     ]
+    },
+    {
+     "gt": [
+      112.0,
+      118.0
+     ],
+     "pred": [
+      113.8,
+      132.7
+     ]
+    },
+    {
+     "gt": [
+      123.0,
+      131.0
+     ],
+     "pred": [
+      170.7,
+      208.6
+     ]
+    },
+    {
+     "gt": [
+      134.0,
+      164.0
+     ],
+     "pred": [
+      208.6,
+      246.5
+     ]
+    },
+    {
+     "gt": [
+      174.0,
+      200.0
+     ],
+     "pred": [
+      265.5,
+      303.4
+     ]
+    },
+    {
+     "gt": [
+      209.0,
+      214.0
+     ],
+     "pred": [
+      303.4,
+      322.4
+     ]
+    },
+    {
+     "gt": [
+      215.0,
+      218.0
+     ],
+     "pred": [
+      303.4,
+      322.4
+     ]
+    },
+    {
+     "gt": [
+      220.0,
+      257.0
+     ],
+     "pred": [
+      246.5,
+      417.2
+     ]
+    },
+    {
+     "gt": [
+      267.0,
+      282.0
+     ],
+     "pred": [
+      322.4,
+      341.3
+     ]
+    },
+    {
+     "gt": [
+      299.0,
+      304.0
+     ],
+     "pred": [
+      341.3,
+      360.3
+     ]
+    },
+    {
+     "gt": [
+      305.0,
+      307.0
+     ],
+     "pred": [
+      341.3,
+      360.3
+     ]
+    },
+    {
+     "gt": [
+      314.0,
+      335.0
+     ],
+     "pred": [
+      322.4,
+      360.3
+     ]
+    },
+    {
+     "gt": [
+      359.0,
+      368.0
+     ],
+     "pred": [
+      360.3,
+      398.2
+     ]
+    },
+    {
+     "gt": [
+      368.0,
+      403.0
+     ],
+     "pred": [
+      379.3,
+      417.2
+     ]
+    },
+    {
+     "gt": [
+      423.0,
+      433.0
+     ],
+     "pred": [
+      417.2,
+      436.2
+     ]
+    }
+   ]
+  },
+  {
+   "category": "purifydna",
+   "video": "purifydna_1",
+   "engine": "vlm",
+   "latency_s": 110.5,
+   "n_flags": 0,
+   "n_steps": 19,
+   "mean_iou": 0.0,
+   "localized_frac": 1.0,
+   "start_within_5s": 0.053,
+   "start_within_10s": 0.053,
+   "ordering_acc": 1.0,
+   "perstep": [
+    {
+     "gt": [
+      5.0,
+      39.0
+     ],
+     "pred": [
+      0.0,
+      5.0
+     ]
+    },
+    {
+     "gt": [
+      42.0,
+      50.0
+     ],
+     "pred": [
+      5.0,
+      10.0
+     ]
+    },
+    {
+     "gt": [
+      60.0,
+      91.0
+     ],
+     "pred": [
+      10.0,
+      15.0
+     ]
+    },
+    {
+     "gt": [
+      92.0,
+      102.0
+     ],
+     "pred": [
+      15.0,
+      20.0
+     ]
+    },
+    {
+     "gt": [
+      104.0,
+      111.0
+     ],
+     "pred": [
+      20.0,
+      25.0
+     ]
+    },
+    {
+     "gt": [
+      112.0,
+      118.0
+     ],
+     "pred": [
+      25.0,
+      30.0
+     ]
+    },
+    {
+     "gt": [
+      123.0,
+      131.0
+     ],
+     "pred": [
+      30.0,
+      35.0
+     ]
+    },
+    {
+     "gt": [
+      134.0,
+      164.0
+     ],
+     "pred": [
+      35.0,
+      40.0
+     ]
+    },
+    {
+     "gt": [
+      174.0,
+      200.0
+     ],
+     "pred": [
+      40.0,
+      45.0
+     ]
+    },
+    {
+     "gt": [
+      209.0,
+      214.0
+     ],
+     "pred": [
+      45.0,
+      50.0
+     ]
+    },
+    {
+     "gt": [
+      215.0,
+      218.0
+     ],
+     "pred": [
+      50.0,
+      55.0
+     ]
+    },
+    {
+     "gt": [
+      220.0,
+      257.0
+     ],
+     "pred": [
+      55.0,
+      60.0
+     ]
+    },
+    {
+     "gt": [
+      267.0,
+      282.0
+     ],
+     "pred": [
+      60.0,
+      65.0
+     ]
+    },
+    {
+     "gt": [
+      299.0,
+      304.0
+     ],
+     "pred": [
+      65.0,
+      70.0
+     ]
+    },
+    {
+     "gt": [
+      305.0,
+      307.0
+     ],
+     "pred": [
+      70.0,
+      75.0
+     ]
+    },
+    {
+     "gt": [
+      314.0,
+      335.0
+     ],
+     "pred": [
+      75.0,
+      80.0
+     ]
+    },
+    {
+     "gt": [
+      359.0,
+      368.0
+     ],
+     "pred": [
+      80.0,
+      85.0
+     ]
+    },
+    {
+     "gt": [
+      368.0,
+      403.0
+     ],
+     "pred": [
+      85.0,
+      90.0
+     ]
+    },
+    {
+     "gt": [
+      423.0,
+      433.0
+     ],
+     "pred": [
+      90.0,
+      95.0
+     ]
+    }
+   ]
+  }
+ ],
+ "aggregate": {
+  "claude": {
+   "mean_iou": 0.284,
+   "start_within_5s": 0.23,
+   "start_within_10s": 0.397,
+   "localized_frac": 1.0,
+   "ordering_acc": 0.854,
+   "latency_s": 33.1,
+   "n_flags": 2.5,
+   "n_videos": 4
+  },
+  "vlm": {
+   "mean_iou": 0.121,
+   "start_within_5s": 0.085,
+   "start_within_10s": 0.185,
+   "localized_frac": 0.75,
+   "ordering_acc": 1.0,
+   "latency_s": 75.2,
+   "n_flags": 0.0,
+   "n_videos": 4
+  }
+ },
+ "by_category": {
+  "claude": {
+   "extractdna": {
+    "mean_iou": 0.485,
+    "start_within_5s": 0.4,
+    "start_within_10s": 0.6,
+    "localized_frac": 1.0,
+    "ordering_acc": 0.75,
+    "latency_s": 38.7,
+    "n_flags": 1.0,
+    "n_videos": 1
+   },
+   "gel": {
+    "mean_iou": 0.356,
+    "start_within_5s": 0.167,
+    "start_within_10s": 0.333,
+    "localized_frac": 1.0,
+    "ordering_acc": 1.0,
+    "latency_s": 24.3,
+    "n_flags": 3.0,
+    "n_videos": 1
+   },
+   "electrophoresis": {
+    "mean_iou": 0.156,
+    "start_within_5s": 0.143,
+    "start_within_10s": 0.286,
+    "localized_frac": 1.0,
+    "ordering_acc": 0.833,
+    "latency_s": 27.8,
+    "n_flags": 3.0,
+    "n_videos": 1
+   },
+   "purifydna": {
+    "mean_iou": 0.14,
+    "start_within_5s": 0.211,
+    "start_within_10s": 0.368,
+    "localized_frac": 1.0,
+    "ordering_acc": 0.833,
+    "latency_s": 41.6,
+    "n_flags": 3.0,
+    "n_videos": 1
+   }
+  },
+  "vlm": {
+   "extractdna": {
+    "mean_iou": 0.372,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.4,
+    "localized_frac": 1.0,
+    "ordering_acc": 1.0,
+    "latency_s": 36.1,
+    "n_flags": 0.0,
+    "n_videos": 1
+   },
+   "gel": {
+    "mean_iou": 0.0,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.0,
+    "localized_frac": 0.0,
+    "ordering_acc": 1.0,
+    "latency_s": 111.4,
+    "n_flags": 0.0,
+    "n_videos": 1
+   },
+   "electrophoresis": {
+    "mean_iou": 0.114,
+    "start_within_5s": 0.286,
+    "start_within_10s": 0.286,
+    "localized_frac": 1.0,
+    "ordering_acc": 1.0,
+    "latency_s": 42.8,
+    "n_flags": 0.0,
+    "n_videos": 1
+   },
+   "purifydna": {
+    "mean_iou": 0.0,
+    "start_within_5s": 0.053,
+    "start_within_10s": 0.053,
+    "localized_frac": 1.0,
+    "ordering_acc": 1.0,
+    "latency_s": 110.5,
+    "n_flags": 0.0,
+    "n_videos": 1
+   }
+  }
+ }
+}
