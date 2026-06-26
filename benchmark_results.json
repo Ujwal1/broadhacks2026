@@ -10,11 +10,12 @@
   "per_cat": 1,
   "frames": 24,
   "claude_model": "claude-opus-4-8",
-  "vlm_model": "Qwen2.5-VL-7B-Instruct (4-bit)  &  Qwen2.5-VL-3B-Instruct",
+  "vlm_model": "Qwen2.5-VL-3B \u00b7 one-shot / Qwen2.5-VL-3B \u00b7 per-frame / Qwen2.5-VL-7B-4bit \u00b7 one-shot",
   "engines": [
    "claude",
-   "Qwen2.5-VL-7B-Instruct (4-bit)",
-   "Qwen2.5-VL-3B-Instruct"
+   "Qwen2.5-VL-3B \u00b7 one-shot",
+   "Qwen2.5-VL-3B \u00b7 per-frame",
+   "Qwen2.5-VL-7B-4bit \u00b7 one-shot"
   ]
  },
  "runs": [
@@ -86,7 +87,7 @@
   {
    "category": "extractdna",
    "video": "extractdna_1",
-   "engine": "Qwen2.5-VL-3B-Instruct",
+   "engine": "Qwen2.5-VL-3B \u00b7 one-shot",
    "latency_s": 36.1,
    "n_flags": 0,
    "n_steps": 5,
@@ -226,7 +227,7 @@
   {
    "category": "gel",
    "video": "gel_1",
-   "engine": "Qwen2.5-VL-3B-Instruct",
+   "engine": "Qwen2.5-VL-3B \u00b7 one-shot",
    "latency_s": 111.4,
    "n_flags": 0,
    "n_steps": 6,
@@ -368,7 +369,7 @@
   {
    "category": "electrophoresis",
    "video": "electrophoresis_1",
-   "engine": "Qwen2.5-VL-3B-Instruct",
+   "engine": "Qwen2.5-VL-3B \u00b7 one-shot",
    "latency_s": 42.8,
    "n_flags": 0,
    "n_steps": 7,
@@ -658,7 +659,7 @@
   {
    "category": "purifydna",
    "video": "purifydna_1",
-   "engine": "Qwen2.5-VL-3B-Instruct",
+   "engine": "Qwen2.5-VL-3B \u00b7 one-shot",
    "latency_s": 110.5,
    "n_flags": 0,
    "n_steps": 19,
@@ -863,7 +864,7 @@
   {
    "category": "extractdna",
    "video": "extractdna_1",
-   "engine": "Qwen2.5-VL-7B-Instruct (4-bit)",
+   "engine": "Qwen2.5-VL-7B-4bit \u00b7 one-shot",
    "latency_s": 64.1,
    "n_flags": 5,
    "n_steps": 5,
@@ -928,7 +929,7 @@
   {
    "category": "gel",
    "video": "gel_1",
-   "engine": "Qwen2.5-VL-7B-Instruct (4-bit)",
+   "engine": "Qwen2.5-VL-7B-4bit \u00b7 one-shot",
    "latency_s": 56.2,
    "n_flags": 6,
    "n_steps": 6,
@@ -985,7 +986,7 @@
   {
    "category": "electrophoresis",
    "video": "electrophoresis_1",
-   "engine": "Qwen2.5-VL-7B-Instruct (4-bit)",
+   "engine": "Qwen2.5-VL-7B-4bit \u00b7 one-shot",
    "latency_s": 76.4,
    "n_flags": 7,
    "n_steps": 7,
@@ -1070,7 +1071,7 @@
   {
    "category": "purifydna",
    "video": "purifydna_1",
-   "engine": "Qwen2.5-VL-7B-Instruct (4-bit)",
+   "engine": "Qwen2.5-VL-7B-4bit \u00b7 one-shot",
    "latency_s": 167.1,
    "n_flags": 0,
    "n_steps": 19,
@@ -1214,6 +1215,352 @@
      "pred": null
     }
    ]
+  },
+  {
+   "category": "extractdna",
+   "video": "extractdna_1",
+   "engine": "Qwen2.5-VL-3B \u00b7 per-frame",
+   "latency_s": 17.1,
+   "n_flags": 3,
+   "n_steps": 5,
+   "mean_iou": 0.123,
+   "localized_frac": 0.4,
+   "start_within_5s": 0.0,
+   "start_within_10s": 0.0,
+   "ordering_acc": 1.0,
+   "perstep": [
+    {
+     "gt": [
+      1.0,
+      37.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      40.0,
+      47.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      55.0,
+      67.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      77.0,
+      113.0
+     ],
+     "pred": [
+      32.7,
+      104.6
+     ]
+    },
+    {
+     "gt": [
+      122.0,
+      146.0
+     ],
+     "pred": [
+      65.4,
+      143.8
+     ]
+    }
+   ]
+  },
+  {
+   "category": "gel",
+   "video": "gel_1",
+   "engine": "Qwen2.5-VL-3B \u00b7 per-frame",
+   "latency_s": 10.1,
+   "n_flags": 5,
+   "n_steps": 6,
+   "mean_iou": 0.013,
+   "localized_frac": 0.167,
+   "start_within_5s": 0.0,
+   "start_within_10s": 0.0,
+   "ordering_acc": 1.0,
+   "perstep": [
+    {
+     "gt": [
+      2.0,
+      32.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      33.0,
+      48.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      52.0,
+      188.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      203.0,
+      221.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      229.0,
+      458.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      460.0,
+      518.0
+     ],
+     "pred": [
+      22.7,
+      498.8
+     ]
+    }
+   ]
+  },
+  {
+   "category": "electrophoresis",
+   "video": "electrophoresis_1",
+   "engine": "Qwen2.5-VL-3B \u00b7 per-frame",
+   "latency_s": 10.2,
+   "n_flags": 5,
+   "n_steps": 7,
+   "mean_iou": 0.0,
+   "localized_frac": 0.286,
+   "start_within_5s": 0.0,
+   "start_within_10s": 0.0,
+   "ordering_acc": 0.0,
+   "perstep": [
+    {
+     "gt": [
+      3.0,
+      10.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      17.0,
+      79.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      93.0,
+      236.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      244.0,
+      356.0
+     ],
+     "pred": [
+      210.0,
+      210.0
+     ]
+    },
+    {
+     "gt": [
+      357.0,
+      396.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      400.0,
+      408.0
+     ],
+     "pred": [
+      126.0,
+      294.1
+     ]
+    },
+    {
+     "gt": [
+      436.0,
+      481.0
+     ],
+     "pred": null
+    }
+   ]
+  },
+  {
+   "category": "purifydna",
+   "video": "purifydna_1",
+   "engine": "Qwen2.5-VL-3B \u00b7 per-frame",
+   "latency_s": 13.2,
+   "n_flags": 15,
+   "n_steps": 19,
+   "mean_iou": 0.007,
+   "localized_frac": 0.211,
+   "start_within_5s": 0.0,
+   "start_within_10s": 0.0,
+   "ordering_acc": 0.333,
+   "perstep": [
+    {
+     "gt": [
+      5.0,
+      39.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      42.0,
+      50.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      60.0,
+      91.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      92.0,
+      102.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      104.0,
+      111.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      112.0,
+      118.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      123.0,
+      131.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      134.0,
+      164.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      174.0,
+      200.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      209.0,
+      214.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      215.0,
+      218.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      220.0,
+      257.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      267.0,
+      282.0
+     ],
+     "pred": [
+      132.7,
+      132.7
+     ]
+    },
+    {
+     "gt": [
+      299.0,
+      304.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      305.0,
+      307.0
+     ],
+     "pred": null
+    },
+    {
+     "gt": [
+      314.0,
+      335.0
+     ],
+     "pred": [
+      37.9,
+      436.2
+     ]
+    },
+    {
+     "gt": [
+      359.0,
+      368.0
+     ],
+     "pred": [
+      170.7,
+      170.7
+     ]
+    },
+    {
+     "gt": [
+      368.0,
+      403.0
+     ],
+     "pred": [
+      19.0,
+      417.2
+     ]
+    },
+    {
+     "gt": [
+      423.0,
+      433.0
+     ],
+     "pred": null
+    }
+   ]
   }
  ],
  "aggregate": {
@@ -1227,17 +1574,7 @@
    "n_flags": 2.5,
    "n_videos": 4
   },
-  "Qwen2.5-VL-7B-Instruct (4-bit)": {
-   "mean_iou": 0.082,
-   "start_within_5s": 0.086,
-   "start_within_10s": 0.086,
-   "localized_frac": 0.5,
-   "ordering_acc": 1.0,
-   "latency_s": 90.95,
-   "n_flags": 4.5,
-   "n_videos": 4
-  },
-  "Qwen2.5-VL-3B-Instruct": {
+  "Qwen2.5-VL-3B \u00b7 one-shot": {
    "mean_iou": 0.121,
    "start_within_5s": 0.085,
    "start_within_10s": 0.185,
@@ -1245,6 +1582,26 @@
    "ordering_acc": 1.0,
    "latency_s": 75.2,
    "n_flags": 0.0,
+   "n_videos": 4
+  },
+  "Qwen2.5-VL-3B \u00b7 per-frame": {
+   "mean_iou": 0.036,
+   "start_within_5s": 0.0,
+   "start_within_10s": 0.0,
+   "localized_frac": 0.266,
+   "ordering_acc": 0.583,
+   "latency_s": 12.65,
+   "n_flags": 7.0,
+   "n_videos": 4
+  },
+  "Qwen2.5-VL-7B-4bit \u00b7 one-shot": {
+   "mean_iou": 0.082,
+   "start_within_5s": 0.086,
+   "start_within_10s": 0.086,
+   "localized_frac": 0.5,
+   "ordering_acc": 1.0,
+   "latency_s": 90.95,
+   "n_flags": 4.5,
    "n_videos": 4
   }
  },
@@ -1291,49 +1648,7 @@
     "n_videos": 1
    }
   },
-  "Qwen2.5-VL-7B-Instruct (4-bit)": {
-   "extractdna": {
-    "mean_iou": 0.2,
-    "start_within_5s": 0.2,
-    "start_within_10s": 0.2,
-    "localized_frac": 1.0,
-    "ordering_acc": 1.0,
-    "latency_s": 64.1,
-    "n_flags": 5.0,
-    "n_videos": 1
-   },
-   "gel": {
-    "mean_iou": 0.0,
-    "start_within_5s": 0.0,
-    "start_within_10s": 0.0,
-    "localized_frac": 0.0,
-    "ordering_acc": 1.0,
-    "latency_s": 56.2,
-    "n_flags": 6.0,
-    "n_videos": 1
-   },
-   "electrophoresis": {
-    "mean_iou": 0.126,
-    "start_within_5s": 0.143,
-    "start_within_10s": 0.143,
-    "localized_frac": 1.0,
-    "ordering_acc": 1.0,
-    "latency_s": 76.4,
-    "n_flags": 7.0,
-    "n_videos": 1
-   },
-   "purifydna": {
-    "mean_iou": 0.0,
-    "start_within_5s": 0.0,
-    "start_within_10s": 0.0,
-    "localized_frac": 0.0,
-    "ordering_acc": 1.0,
-    "latency_s": 167.1,
-    "n_flags": 0.0,
-    "n_videos": 1
-   }
-  },
-  "Qwen2.5-VL-3B-Instruct": {
+  "Qwen2.5-VL-3B \u00b7 one-shot": {
    "extractdna": {
     "mean_iou": 0.372,
     "start_within_5s": 0.0,
@@ -1371,6 +1686,90 @@
     "localized_frac": 1.0,
     "ordering_acc": 1.0,
     "latency_s": 110.5,
+    "n_flags": 0.0,
+    "n_videos": 1
+   }
+  },
+  "Qwen2.5-VL-3B \u00b7 per-frame": {
+   "extractdna": {
+    "mean_iou": 0.123,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.0,
+    "localized_frac": 0.4,
+    "ordering_acc": 1.0,
+    "latency_s": 17.1,
+    "n_flags": 3.0,
+    "n_videos": 1
+   },
+   "gel": {
+    "mean_iou": 0.013,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.0,
+    "localized_frac": 0.167,
+    "ordering_acc": 1.0,
+    "latency_s": 10.1,
+    "n_flags": 5.0,
+    "n_videos": 1
+   },
+   "electrophoresis": {
+    "mean_iou": 0.0,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.0,
+    "localized_frac": 0.286,
+    "ordering_acc": 0.0,
+    "latency_s": 10.2,
+    "n_flags": 5.0,
+    "n_videos": 1
+   },
+   "purifydna": {
+    "mean_iou": 0.007,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.0,
+    "localized_frac": 0.211,
+    "ordering_acc": 0.333,
+    "latency_s": 13.2,
+    "n_flags": 15.0,
+    "n_videos": 1
+   }
+  },
+  "Qwen2.5-VL-7B-4bit \u00b7 one-shot": {
+   "extractdna": {
+    "mean_iou": 0.2,
+    "start_within_5s": 0.2,
+    "start_within_10s": 0.2,
+    "localized_frac": 1.0,
+    "ordering_acc": 1.0,
+    "latency_s": 64.1,
+    "n_flags": 5.0,
+    "n_videos": 1
+   },
+   "gel": {
+    "mean_iou": 0.0,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.0,
+    "localized_frac": 0.0,
+    "ordering_acc": 1.0,
+    "latency_s": 56.2,
+    "n_flags": 6.0,
+    "n_videos": 1
+   },
+   "electrophoresis": {
+    "mean_iou": 0.126,
+    "start_within_5s": 0.143,
+    "start_within_10s": 0.143,
+    "localized_frac": 1.0,
+    "ordering_acc": 1.0,
+    "latency_s": 76.4,
+    "n_flags": 7.0,
+    "n_videos": 1
+   },
+   "purifydna": {
+    "mean_iou": 0.0,
+    "start_within_5s": 0.0,
+    "start_within_10s": 0.0,
+    "localized_frac": 0.0,
+    "ordering_acc": 1.0,
+    "latency_s": 167.1,
     "n_flags": 0.0,
     "n_videos": 1
    }

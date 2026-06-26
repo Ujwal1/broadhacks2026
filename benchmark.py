@@ -49,7 +49,9 @@ def run_one(engine, steps, frames):
     t0 = time.time()
     if engine == "claude":
         res = app.align(steps, frames)
-    else:
+    elif engine == "vlmpf":               # VLM per-frame classification
+        res = vlm_engine.align_vlm_perframe(steps, frames)
+    else:                                  # vlm one-shot
         res = vlm_engine.align_vlm(steps, frames)
     res["_latency_s"] = round(time.time() - t0, 1)
     return res
