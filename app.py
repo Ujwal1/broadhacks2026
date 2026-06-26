@@ -449,7 +449,7 @@ scored against BioVL-QR ground-truth timestamps.</p>
 const DATA = {{ data_json|safe }};
 const root=document.getElementById('root');
 const ECPAL=['#5b54c9','#e07b39','#3a9a6b','#b3508a','#9a6b15'];
-function ecolor(e,i){return e==='claude'?'#0e7c86':ECPAL[i%ECPAL.length];}
+function ecolor(e,i){return e.toLowerCase().includes('claude')?'#0e7c86':ECPAL[i%ECPAL.length];}
 const PAL=['#0e7c86','#e07b39','#5b54c9','#3a9a6b','#b3508a','#9a6b15','#3a7a86','#a9701b','#7a8a90','#b3261e'];
 function pct(x){return x==null?'–':Math.round(x*100)+'%';}
 function trackHtml(label,segs,dur){

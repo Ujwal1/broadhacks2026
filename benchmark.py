@@ -57,6 +57,27 @@ def run_one(engine, steps, frames):
     return res
 
 
+def write_results(runs, args):
+    """Compute aggregates and write the results JSON (called incrementally so a long
+    run is crash-safe — partial results are always on disk)."""
+    agg, by_cat = {}, {}
+    for eng in args.engines:
+        er = [r for r in runs if r["engine"] == eng]
+        if er:
+            agg[eng] = metrics.aggregate(er)
+        for cat in args.categories:
+            cr = [r for r in er if r["category"] == cat]
+            if cr:
+                by_cat.setdefault(eng, {})[cat] = metrics.aggregate(cr)
+    out = {"config": {"data": args.data, "categories": args.categories,
+                      "per_cat": args.per_cat, "frames": args.frames,
+                      "claude_model": app.MODEL, "vlm_model": app.VLM_LABEL},
+           "runs": runs, "aggregate": agg, "by_category": by_cat}
+    with open(args.out, "w") as fh:
+        json.dump(out, fh, indent=1)
+    return agg
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="/home/jovyan/workbench/BioVL-QR_zip")
@@ -106,25 +127,9 @@ def main():
                           f"order={m['ordering_acc']:.2f}  {res['_latency_s']}s", flush=True)
                 except Exception as e:
                     print(f"   [{eng:6}] ERROR: {e}", flush=True)
+                write_results(runs, args)   # incremental crash-safe save
 
-    # aggregate: overall per engine + per (engine, category)
-    agg = {}
-    by_cat = {}
-    for eng in args.engines:
-        er = [r for r in runs if r["engine"] == eng]
-        if er:
-            agg[eng] = metrics.aggregate(er)
-        for cat in args.categories:
-            cr = [r for r in er if r["category"] == cat]
-            if cr:
-                by_cat.setdefault(eng, {})[cat] = metrics.aggregate(cr)
-
-    out = {"config": {"data": args.data, "categories": args.categories,
-                      "per_cat": args.per_cat, "frames": args.frames,
-                      "claude_model": app.MODEL, "vlm_model": app.VLM_LABEL},
-           "runs": runs, "aggregate": agg, "by_category": by_cat}
-    with open(args.out, "w") as fh:
-        json.dump(out, fh, indent=1)
+    agg = write_results(runs, args)
     print(f"\nwrote {args.out}  ({len(runs)} runs)", flush=True)
     for eng, a in agg.items():
         print(f"  {eng:6}: meanIoU={a['mean_iou']}  ±10s={a['start_within_10s']}  "
