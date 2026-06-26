@@ -448,7 +448,8 @@ scored against BioVL-QR ground-truth timestamps.</p>
 <script>
 const DATA = {{ data_json|safe }};
 const root=document.getElementById('root');
-const ENGCLR={claude:'#0e7c86',vlm:'#5b54c9'};
+const ECPAL=['#5b54c9','#e07b39','#3a9a6b','#b3508a','#9a6b15'];
+function ecolor(e,i){return e==='claude'?'#0e7c86':ECPAL[i%ECPAL.length];}
 const PAL=['#0e7c86','#e07b39','#5b54c9','#3a9a6b','#b3508a','#9a6b15','#3a7a86','#a9701b','#7a8a90','#b3261e'];
 function pct(x){return x==null?'–':Math.round(x*100)+'%';}
 function trackHtml(label,segs,dur){
@@ -464,9 +465,9 @@ if(!DATA){
  const METR=[['mean_iou','Temporal IoU',1],['start_within_10s','Start ±10s',1],['start_within_5s','Start ±5s',1],['localized_frac','Localized',1],['ordering_acc','Ordering',1],['latency_s','Latency (s)',0]];
  let h=`<div class="card"><div class="meta"><b>${cfg.claude_model}</b> vs <b>${cfg.vlm_model}</b> · ${cfg.frames} frames/clip · ${A[eng[0]].n_videos} videos · categories: ${cfg.categories.join(', ')}</div></div>`;
  h+='<div class="card"><h2>Leaderboard — vs BioVL-QR ground truth</h2><table><tr><th>Engine</th>'+METR.map(m=>`<th>${m[1]}</th>`).join('')+'</tr>';
- eng.forEach(e=>{h+=`<tr><td><span class="dot" style="background:${ENGCLR[e]||'#888'}"></span>${e}</td>`;
+ eng.forEach((e,ei)=>{const ec=ecolor(e,ei);h+=`<tr><td><span class="dot" style="background:${ec}"></span>${e}</td>`;
   METR.forEach(m=>{const v=A[e][m[0]];const disp=m[2]?pct(v):(v==null?'–':v);
-   const bar=(m[2]&&v!=null)?`<div class="bar"><div class="fill" style="width:${Math.round(v*100)}%;background:${ENGCLR[e]}"></div></div>`:'';
+   const bar=(m[2]&&v!=null)?`<div class="bar"><div class="fill" style="width:${Math.round(v*100)}%;background:${ec}"></div></div>`:'';
    h+=`<td>${disp}${bar}</td>`;});
   h+='</tr>';});
  h+='</table><div class="meta" style="margin-top:8px">Higher is better except latency. IoU = overlap of predicted vs true step time-range.</div></div>';

@@ -18,8 +18,10 @@ def _iou(a0, a1, b0, b1):
 
 
 def _localized(step):
-    """A step is 'localized' if the engine gave a real frame/time (best_frame_index>=0)."""
-    return isinstance(step.get("best_frame_index"), int) and step["best_frame_index"] >= 0
+    """A step is 'localized' if the engine gave a real frame/time (best_frame_index>=0).
+    Tolerant of None / float / bool values an engine might emit."""
+    bfi = step.get("best_frame_index")
+    return isinstance(bfi, (int, float)) and not isinstance(bfi, bool) and bfi >= 0
 
 
 def score_vs_groundtruth(pred_steps, gt_intervals, tol=(5, 10)):

@@ -91,11 +91,12 @@ def main():
                 try:
                     res = run_one(eng, steps, frames)
                     m = metrics.score_vs_groundtruth(res["steps"], gt)
-                    perstep = [{"gt": list(gt[i]),
-                                "pred": [res["steps"][i].get("start_time_s", 0),
-                                         res["steps"][i].get("end_time_s", 0)]
-                                        if res["steps"][i].get("best_frame_index", -1) >= 0 else None}
-                               for i in range(min(len(gt), len(res["steps"])))]
+                    perstep = []
+                    for i in range(min(len(gt), len(res["steps"]))):
+                        ps = res["steps"][i]
+                        pred = [ps.get("start_time_s", 0), ps.get("end_time_s", 0)] \
+                            if metrics._localized(ps) else None
+                        perstep.append({"gt": list(gt[i]), "pred": pred})
                     runs.append({"category": cat, "video": stem, "engine": eng,
                                  "latency_s": res["_latency_s"], "n_flags": res.get("n_flags", 0),
                                  **m, "perstep": perstep})

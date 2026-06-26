@@ -1,12 +1,17 @@
 """Open-source VLM (Qwen2.5-VL) engine that mirrors app.py's Claude align() — same schema,
 so Claude vs VLM can be shown side-by-side. Lazy-loads the model on first use."""
-import base64, io, json, re, threading
+import base64, io, json, os, re, threading
 from PIL import Image
 
 import prompts
 
-VLM_MODEL = "Qwen/Qwen2.5-VL-3B-Instruct"
-VLM_MAX_FRAMES = 10          # keep vision tokens in T4 memory budget
+# Model is configurable via env so we can A/B different VLMs without code changes.
+# Default is the 3B: our benchmark found it BEATS the 7B-4bit here (higher IoU, 2x faster) —
+# the bigger model in 4-bit was more conservative and slower. Try the 7B with
+# VLM_MODEL=Qwen/Qwen2.5-VL-7B-Instruct (auto-loads in 4-bit; needs bitsandbytes).
+VLM_MODEL = os.environ.get("VLM_MODEL", "Qwen/Qwen2.5-VL-3B-Instruct")
+VLM_4BIT = os.environ.get("VLM_4BIT", "auto")   # "1"/"0"/"auto" (auto -> quantize >=7B)
+VLM_MAX_FRAMES = int(os.environ.get("VLM_MAX_FRAMES", "10"))   # keep vision tokens in GPU budget
 VLM_FRAME_PX = 640           # resize long side before sending
 VLM_MAX_NEW_TOKENS = 2000
 
@@ -15,8 +20,16 @@ _processor = None
 _lock = threading.Lock()
 
 
+def _use_4bit():
+    if VLM_4BIT.lower() in ("1", "true", "yes"):
+        return True
+    if VLM_4BIT.lower() in ("0", "false", "no"):
+        return False
+    return any(s in VLM_MODEL for s in ("7B", "8B", "13B", "32B", "72B"))  # auto
+
+
 def vlm_name():
-    return VLM_MODEL.split("/")[-1]
+    return VLM_MODEL.split("/")[-1] + (" (4-bit)" if _use_4bit() else "")
 
 
 def _load():
@@ -26,8 +39,13 @@ def _load():
             if _model is None:
                 import torch
                 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
-                _model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-                    VLM_MODEL, torch_dtype=torch.float16, device_map="cuda")
+                kw = dict(device_map="cuda", torch_dtype=torch.float16)
+                if _use_4bit():
+                    from transformers import BitsAndBytesConfig
+                    kw["quantization_config"] = BitsAndBytesConfig(
+                        load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                        bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
+                _model = Qwen2_5_VLForConditionalGeneration.from_pretrained(VLM_MODEL, **kw)
                 _model.eval()
                 _processor = AutoProcessor.from_pretrained(
                     VLM_MODEL, min_pixels=256 * 28 * 28, max_pixels=640 * 28 * 28)
