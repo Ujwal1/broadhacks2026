@@ -1,11 +1,13 @@
 import AVFoundation
 import CoreML
+import Photos
 import UIKit
 import Vision
 
 final class CameraDetectionViewController: UIViewController {
     private let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
+    private let movieOutput = AVCaptureMovieFileOutput()
     private let videoQueue = DispatchQueue(label: "camera.frames.queue", qos: .userInteractive)
     private let visionQueue = DispatchQueue(label: "vision.requests.queue", qos: .userInitiated)
 
@@ -26,10 +28,18 @@ final class CameraDetectionViewController: UIViewController {
     private let memoButton = UIButton(type: .system)
     private let currentStepButton = UIButton(type: .system)
     private let resetProgressButton = UIButton(type: .system)
+    private let recordButton = UIButton(type: .custom)
+    private let recordButtonInnerView = UIView()
+    private let pastExperimentsButton = UIButton(type: .system)
+    private let recordingIndicatorLabel = UILabel()
+    private var recordingTimer: Timer?
+    private var recordingStartTime: Date?
+    private var isRecording = false
     private var protocolPanelLeadingConstraint: NSLayoutConstraint?
-    private var selectedProtocol = LabProtocol.automatedProteinSynthesis
-    private var protocolStates: [LabProtocol: ProtocolRunState] = Dictionary(
-        uniqueKeysWithValues: LabProtocol.allCases.map { ($0, ProtocolRunState(stepCount: $0.steps.count)) }
+    private let protocols = ProtocolLibrary.loadAll()
+    private lazy var selectedProtocol: LabProtocol = protocols.first ?? LabProtocol.placeholder
+    private lazy var protocolStates: [LabProtocol: ProtocolRunState] = Dictionary(
+        uniqueKeysWithValues: protocols.map { ($0, ProtocolRunState(stepCount: $0.steps.count)) }
     )
     private var selectedStepIndex = 0
     private var isProtocolPanelOpen = false
@@ -59,6 +69,7 @@ final class CameraDetectionViewController: UIViewController {
         configureProtocolMenu()
         configureDetectionToggle()
         configureProtocolPanel()
+        configureRecordingControls()
         configureProtocolGestures()
         startMetalMatrixBenchmark()
         checkCameraPermission()
@@ -296,9 +307,193 @@ final class CameraDetectionViewController: UIViewController {
         protocolPanel.addGestureRecognizer(closeGesture)
     }
 
+    /// Panel/control buttons that get darkened and disabled while recording is in progress.
+    private var dimmableControls: [UIView] {
+        [
+            protocolButton, detectionToggleButton, pastExperimentsButton,
+            doneButton, flagButton, uncertainButton, missedButton,
+            memoButton, currentStepButton, resetProgressButton
+        ]
+    }
+
+    private func configureRecordingControls() {
+        // Circular record button, bottom-center.
+        recordButton.translatesAutoresizingMaskIntoConstraints = false
+        recordButton.backgroundColor = .clear
+        recordButton.layer.cornerRadius = 34
+        recordButton.layer.borderWidth = 4
+        recordButton.layer.borderColor = UIColor.white.cgColor
+        recordButton.addTarget(self, action: #selector(toggleRecording), for: .touchUpInside)
+        view.addSubview(recordButton)
+
+        recordButtonInnerView.translatesAutoresizingMaskIntoConstraints = false
+        recordButtonInnerView.backgroundColor = .systemRed
+        recordButtonInnerView.layer.cornerRadius = 26
+        recordButtonInnerView.isUserInteractionEnabled = false
+        recordButton.addSubview(recordButtonInnerView)
+
+        // "Past experiments" button, bottom-trailing.
+        pastExperimentsButton.translatesAutoresizingMaskIntoConstraints = false
+        pastExperimentsButton.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+        pastExperimentsButton.layer.cornerRadius = 8
+        pastExperimentsButton.clipsToBounds = true
+        pastExperimentsButton.tintColor = .white
+        var pastConfig = UIButton.Configuration.plain()
+        pastConfig.baseForegroundColor = .white
+        pastConfig.image = UIImage(systemName: "tray.full")
+        pastConfig.imagePadding = 5
+        pastConfig.title = "Past"
+        pastConfig.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
+        pastConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var updated = attributes
+            updated.font = .systemFont(ofSize: 12, weight: .semibold)
+            return updated
+        }
+        pastExperimentsButton.configuration = pastConfig
+        pastExperimentsButton.addTarget(self, action: #selector(openPastExperiments), for: .touchUpInside)
+        view.addSubview(pastExperimentsButton)
+
+        // Recording indicator (red dot + elapsed time), top-center.
+        recordingIndicatorLabel.translatesAutoresizingMaskIntoConstraints = false
+        recordingIndicatorLabel.textColor = .white
+        recordingIndicatorLabel.font = .monospacedDigitSystemFont(ofSize: 14, weight: .bold)
+        recordingIndicatorLabel.backgroundColor = UIColor.systemRed.withAlphaComponent(0.85)
+        recordingIndicatorLabel.textAlignment = .center
+        recordingIndicatorLabel.layer.cornerRadius = 8
+        recordingIndicatorLabel.clipsToBounds = true
+        recordingIndicatorLabel.isHidden = true
+        view.addSubview(recordingIndicatorLabel)
+
+        NSLayoutConstraint.activate([
+            recordButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            recordButton.bottomAnchor.constraint(equalTo: statusLabel.topAnchor, constant: -16),
+            recordButton.widthAnchor.constraint(equalToConstant: 68),
+            recordButton.heightAnchor.constraint(equalToConstant: 68),
+
+            recordButtonInnerView.centerXAnchor.constraint(equalTo: recordButton.centerXAnchor),
+            recordButtonInnerView.centerYAnchor.constraint(equalTo: recordButton.centerYAnchor),
+            recordButtonInnerView.widthAnchor.constraint(equalToConstant: 52),
+            recordButtonInnerView.heightAnchor.constraint(equalToConstant: 52),
+
+            pastExperimentsButton.centerYAnchor.constraint(equalTo: recordButton.centerYAnchor),
+            pastExperimentsButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            pastExperimentsButton.heightAnchor.constraint(equalToConstant: 36),
+
+            recordingIndicatorLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            recordingIndicatorLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            recordingIndicatorLabel.heightAnchor.constraint(equalToConstant: 30),
+            recordingIndicatorLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 96)
+        ])
+    }
+
+    @objc private func openPastExperiments() {
+        guard !isRecording else { return }
+        let pastExperiments = PastExperimentsViewController()
+        let navigation = UINavigationController(rootViewController: pastExperiments)
+        navigation.modalPresentationStyle = .fullScreen
+        present(navigation, animated: true)
+    }
+
+    @objc private func toggleRecording() {
+        isRecording ? stopRecording() : startRecording()
+    }
+
+    private func startRecording() {
+        guard session.isRunning, !movieOutput.isRecording else { return }
+        guard movieOutput.connection(with: .video) != nil else { return }
+
+        let outputURL = ExperimentStore.shared.newVideoURL()
+        // newVideoURL() returns a fresh path, but AVFoundation refuses to overwrite.
+        try? FileManager.default.removeItem(at: outputURL)
+
+        recordingStartTime = Date()
+        isRecording = true
+        setControlsRecording(true)
+        startRecordingTimer()
+        movieOutput.startRecording(to: outputURL, recordingDelegate: self)
+    }
+
+    private func stopRecording() {
+        guard movieOutput.isRecording else { return }
+        movieOutput.stopRecording()
+    }
+
+    /// Dims and disables the panel controls while recording, and animates the record button
+    /// between its idle (circle) and recording (rounded square) states.
+    private func setControlsRecording(_ recording: Bool) {
+        if recording {
+            setProtocolPanel(open: false, animated: true)
+        }
+
+        UIView.animate(withDuration: 0.2) {
+            for control in self.dimmableControls {
+                control.alpha = recording ? 0.25 : 1.0
+                control.isUserInteractionEnabled = !recording
+            }
+            self.recordButtonInnerView.layer.cornerRadius = recording ? 8 : 26
+            self.recordButtonInnerView.transform = recording
+                ? CGAffineTransform(scaleX: 0.62, y: 0.62)
+                : .identity
+        }
+
+        recordingIndicatorLabel.isHidden = !recording
+    }
+
+    private func startRecordingTimer() {
+        recordingIndicatorLabel.text = "● 0:00"
+        recordingTimer?.invalidate()
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self, let start = self.recordingStartTime else { return }
+            let elapsed = Int(Date().timeIntervalSince(start).rounded())
+            self.recordingIndicatorLabel.text = String(format: "● %d:%02d", elapsed / 60, elapsed % 60)
+        }
+    }
+
+    private func stopRecordingTimer() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+    }
+
+    /// Persists a finished recording to the experiment store and offers to copy it into the
+    /// system photo library. (Server upload is intentionally not wired up yet.)
+    private func saveRecording(at outputURL: URL) {
+        let duration = recordingStartTime.map { Date().timeIntervalSince($0) } ?? 0
+        ExperimentStore.shared.addExperiment(
+            videoURL: outputURL,
+            protocolTitle: selectedProtocol.title,
+            duration: duration,
+            createdAt: recordingStartTime ?? Date()
+        )
+        recordingStartTime = nil
+        saveToPhotoLibraryIfAuthorized(outputURL)
+        presentRecordingSavedConfirmation()
+    }
+
+    private func saveToPhotoLibraryIfAuthorized(_ url: URL) {
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else { return }
+            PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+            }
+        }
+    }
+
+    private func presentRecordingSavedConfirmation() {
+        let alert = UIAlertController(
+            title: "Recording saved",
+            message: "Saved to Past Experiments.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "View", style: .default) { [weak self] _ in
+            self?.openPastExperiments()
+        })
+        present(alert, animated: true)
+    }
+
     private func updateProtocolMenu() {
         protocolButton.configuration?.title = selectedProtocol.title
-        protocolButton.menu = UIMenu(children: LabProtocol.allCases.map { labProtocol in
+        protocolButton.menu = UIMenu(children: protocols.map { labProtocol in
             UIAction(title: labProtocol.title, state: labProtocol == selectedProtocol ? .on : .off) { [weak self] _ in
                 self?.select(labProtocol)
             }
@@ -543,6 +738,17 @@ final class CameraDetectionViewController: UIViewController {
                 connection.videoRotationAngle = 90
             }
         }
+
+        addAudioInput()
+
+        if session.canAddOutput(movieOutput) {
+            session.addOutput(movieOutput)
+            if let movieConnection = movieOutput.connection(with: .video),
+               movieConnection.isVideoRotationAngleSupported(90) {
+                movieConnection.videoRotationAngle = 90
+            }
+        }
+
         session.commitConfiguration()
 
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
@@ -559,6 +765,15 @@ final class CameraDetectionViewController: UIViewController {
         DispatchQueue.global(qos: .userInitiated).async { [session] in
             session.startRunning()
         }
+    }
+
+    private func addAudioInput() {
+        guard
+            let microphone = AVCaptureDevice.default(for: .audio),
+            let audioInput = try? AVCaptureDeviceInput(device: microphone),
+            session.canAddInput(audioInput)
+        else { return }
+        session.addInput(audioInput)
     }
 
     private func configureCameraFor60FPS(_ camera: AVCaptureDevice) {
@@ -948,6 +1163,46 @@ extension CameraDetectionViewController: AVCaptureVideoDataOutputSampleBufferDel
     }
 }
 
+extension CameraDetectionViewController: AVCaptureFileOutputRecordingDelegate {
+    func fileOutput(
+        _ output: AVCaptureFileOutput,
+        didFinishRecordingTo outputFileURL: URL,
+        from connections: [AVCaptureConnection],
+        error: Error?
+    ) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.isRecording = false
+            self.stopRecordingTimer()
+            self.setControlsRecording(false)
+
+            // A nonzero error code can still accompany a usable file (e.g. it reached the
+            // size limit); AVErrorRecordingSuccessfullyFinishedKey tells us if it's playable.
+            let finishedCleanly = (error as NSError?)?
+                .userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool ?? (error == nil)
+
+            guard finishedCleanly else {
+                try? FileManager.default.removeItem(at: outputFileURL)
+                self.recordingStartTime = nil
+                self.presentRecordingError()
+                return
+            }
+
+            self.saveRecording(at: outputFileURL)
+        }
+    }
+
+    private func presentRecordingError() {
+        let alert = UIAlertController(
+            title: "Recording failed",
+            message: "The video could not be saved. Please try again.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+}
+
 private struct Detection {
     let label: String
     let confidence: VNConfidence
@@ -1060,58 +1315,6 @@ private final class ProtocolStepCell: UITableViewCell {
         contentView.layer.cornerRadius = 8
         contentView.clipsToBounds = true
     }
-}
-
-private enum LabProtocol: CaseIterable {
-    case automatedProteinSynthesis
-    case liquidTransfer
-
-    var title: String {
-        switch self {
-        case .automatedProteinSynthesis:
-            return "Automated protein synthesis"
-        case .liquidTransfer:
-            return "Automated liquid handling"
-        }
-    }
-
-    var heading: String {
-        switch self {
-        case .automatedProteinSynthesis:
-            return "PCR Mutagenesis Setup"
-        case .liquidTransfer:
-            return "Liquid Transfer Protocol"
-        }
-    }
-
-    var steps: [ProtocolStep] {
-        switch self {
-        case .automatedProteinSynthesis:
-            return [
-                ProtocolStep(number: 1, text: "Thaw Q5 Hot Start Master Mix, forward primer, reverse primer, plasmid template, and nuclease-free water."),
-                ProtocolStep(number: 2, text: "Label 2 PCR tubes (Negative Control, Mutagenesis)"),
-                ProtocolStep(number: 3, text: "Prepare the PCR master mix for 2 reactions (12 uL Q5 Hot Start Master Mix, 2 uL Forward Primer (10 uM), 2 uL Reverse Primer (10 uM), 2 uL nuclease-free water)"),
-                ProtocolStep(number: 4, text: "Mix the master mix gently until homogeneous."),
-                ProtocolStep(number: 5, text: "Add 6 uL master mix to each PCR tube."),
-                ProtocolStep(number: 6, text: "Add to Mutagenesis 2 uL plasmid template"),
-                ProtocolStep(number: 7, text: "Add to Negative Control 2 uL nuclease-free water"),
-                ProtocolStep(number: 8, text: "Gently pipette-mix each reaction."),
-                ProtocolStep(number: 9, text: "Briefly spin tubes to collect liquid at the bottom."),
-                ProtocolStep(number: 10, text: "Place tubes into the thermocycler.")
-            ]
-        case .liquidTransfer:
-            return [
-                ProtocolStep(number: 1, text: "Prepare two cups, with one filled with water. If this is prepared, gives a thumbs up."),
-                ProtocolStep(number: 2, text: "In a controlled manner, transfer water from one cup to the other, ensuring no water spills."),
-                ProtocolStep(number: 3, text: "Place cups down neatly. If done successfully, give an OK sign.")
-            ]
-        }
-    }
-}
-
-private struct ProtocolStep {
-    let number: Int
-    let text: String
 }
 
 private struct ProtocolRunState {

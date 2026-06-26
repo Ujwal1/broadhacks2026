@@ -1,0 +1,7 @@
+Title: Automated liquid handling
+Order: 2
+Liquid Transfer Protocol
+
+1. Prepare two cups, with one filled with water. If this is prepared, gives a thumbs up.
+2. In a controlled manner, transfer water from one cup to the other, ensuring no water spills.
+3. Place cups down neatly. If done successfully, give an OK sign.

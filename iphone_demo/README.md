@@ -33,11 +33,31 @@ Camera/GPU performance notes:
 - Person, animal, classification, and saliency Vision requests are batched through one image handler to reduce repeated image preprocessing.
 - The Metal matrix multiply uses `MPSMatrixMultiplication` and schedules follow-up work asynchronously so it competes less with camera preview.
 
-The top-left transparent protocol dropdown shows only the selected protocol name and supports:
+## Protocols
 
-- `Automated protein synthesis`, shown as a swipe-in PCR mutagenesis setup protocol.
-- `Automated liquid handling`, shown as a swipe-in `Liquid Transfer Protocol`.
+Protocols are **scraped at launch** from `.txt` files bundled in the `Protocols/` folder
+(`ProtocolLibrary.loadAll()`), so adding a protocol is just dropping a file into that folder —
+no code changes. The drop-down lists every protocol it finds. Currently bundled:
 
+- `Automated protein synthesis` (`PCR Mutagenesis Setup`)
+- `Automated liquid handling` (`Liquid Transfer Protocol`)
+- `High throughput stem cell culturing` (`Lentiviral infection of iPSC Fibroblast`)
+
+File format (leading metadata lines are optional):
+
+```
+Title: Automated protein synthesis   # drop-down name; defaults to the heading line
+Order: 1                             # sort position in the drop-down; defaults to the end
+PCR Mutagenesis Setup                # heading shown at the top of the protocol panel
+
+1. First step...
+2. Second step...
+```
+
+Numbered lines become steps and are renumbered sequentially, so duplicate or skipped numbers
+in the source file are tolerated. The folder is a copy of the repo-level `protocols/` directory.
+
+The top-left transparent protocol dropdown shows only the selected protocol name.
 Swipe from the left edge to reveal the selected protocol. Swipe the protocol panel left to hide it.
 
 Protocol panel behavior:
@@ -53,6 +73,25 @@ Protocol panel behavior:
 - `Boxes: On/Off` toggles object detection bounding boxes.
 
 Scan status now appears in a top-right box between FPS and the bounding-box toggle. The bottom bar shows the current protocol step on one line with truncation when needed.
+
+## Recording experiments
+
+A circular record button sits at the bottom-center of the camera screen.
+
+- Tapping it starts recording the camera feed (with audio) via `AVCaptureMovieFileOutput`, which runs alongside the live Vision detection on the same capture session.
+- While recording, every panel/overlay control (protocol dropdown, box toggle, step actions, and the `Past` button) is dimmed and disabled so the recording stays clean, and a red `● m:ss` timer appears at the top. The record button morphs into a stop square.
+- Tapping again stops recording. The video is saved into the app's `Documents/Experiments` directory, registered in `ExperimentStore`, and (if the user grants access) also copied to the system photo library.
+
+## Past experiments
+
+The `Past` button at the bottom-right opens the **Past Experiments** page (`PastExperimentsViewController`):
+
+- Experiments are **grouped into sections by protocol**; each row is titled by its recording date (with the time as a subtitle) and shows a thumbnail and a duration badge.
+- Tap a row to play the video full-screen with `AVPlayerViewController`.
+- Swipe a row to delete it.
+- The photo-library button in the nav bar imports an existing video (via `PHPickerViewController`); on import you pick which protocol it belongs to so it files into the right section.
+
+Persistence is on-device only for now. `Experiment` carries `inferenceRuns` and `isUploaded` fields so a future uploader can POST each video + metadata to the web server and record inference results against it — that server integration is intentionally not implemented yet.
 
 Open `ObjectDetectDemo.xcodeproj` in Xcode, select a physical iPhone as the run target, and run. The iOS Simulator does not provide a real camera feed for this workflow.
 

@@ -11,6 +11,10 @@
 		A10000000000000000000002 /* CameraDetectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* CameraDetectionView.swift */; };
 		A10000000000000000000003 /* CameraDetectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* CameraDetectionViewController.swift */; };
 		A10000000000000000000004 /* MetalMatrixMultiplier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* MetalMatrixMultiplier.swift */; };
+		A10000000000000000000005 /* Experiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* Experiment.swift */; };
+		A10000000000000000000006 /* PastExperimentsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* PastExperimentsViewController.swift */; };
+		A10000000000000000000007 /* ProtocolLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* ProtocolLibrary.swift */; };
+		A10000000000000000000008 /* Protocols in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000019 /* Protocols */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +24,10 @@
 		A10000000000000000000013 /* CameraDetectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDetectionViewController.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000015 /* MetalMatrixMultiplier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalMatrixMultiplier.swift; sourceTree = "<group>"; };
+		A10000000000000000000016 /* Experiment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Experiment.swift; sourceTree = "<group>"; };
+		A10000000000000000000017 /* PastExperimentsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastExperimentsViewController.swift; sourceTree = "<group>"; };
+		A10000000000000000000018 /* ProtocolLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolLibrary.swift; sourceTree = "<group>"; };
+		A10000000000000000000019 /* Protocols */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Protocols; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,6 +48,10 @@
 				A10000000000000000000012 /* CameraDetectionView.swift */,
 				A10000000000000000000013 /* CameraDetectionViewController.swift */,
 				A10000000000000000000015 /* MetalMatrixMultiplier.swift */,
+				A10000000000000000000016 /* Experiment.swift */,
+				A10000000000000000000017 /* PastExperimentsViewController.swift */,
+				A10000000000000000000018 /* ProtocolLibrary.swift */,
+				A10000000000000000000019 /* Protocols */,
 				A10000000000000000000014 /* Info.plist */,
 			);
 			path = ObjectDetectDemo;
@@ -122,6 +134,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000008 /* Protocols in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -136,6 +149,9 @@
 				A10000000000000000000002 /* CameraDetectionView.swift in Sources */,
 				A10000000000000000000003 /* CameraDetectionViewController.swift in Sources */,
 				A10000000000000000000004 /* MetalMatrixMultiplier.swift in Sources */,
+				A10000000000000000000005 /* Experiment.swift in Sources */,
+				A10000000000000000000006 /* PastExperimentsViewController.swift in Sources */,
+				A10000000000000000000007 /* ProtocolLibrary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

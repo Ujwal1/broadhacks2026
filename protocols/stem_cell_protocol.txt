@@ -1,0 +1,9 @@
+Lentiviral infection of iPSC Fibroblast
+
+1. Thaw purified Lenti-Cas12a-U6-TGFBR1 and control lentivirus on ice.
+2. Retrieve pre-seeded iPSC-fibroblast plates from the incubator.
+3. (Optional) Replace culture medium with fresh infection medium as needed.
+3. Add 20 µL of the appropriate virus to each well.
+4. Gently rock the plate to evenly distribute the virus.
+5. Record the infection start time and group assignments on the plate and in your log.
+6. Return plates to the incubator and culture for 72 hours.

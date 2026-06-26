@@ -1,0 +1,14 @@
+Title: Automated protein synthesis
+Order: 1
+PCR Mutagenesis Setup
+
+1. Thaw Q5 Hot Start Master Mix, forward primer, reverse primer, plasmid template, and nuclease-free water.
+2. Label 2 PCR tubes (Negative Control, Mutagenesis)
+3. Prepare the PCR master mix for 2 reactions (12 µL Q5 Hot Start Master Mix, 2 µL Forward Primer (10 µM), 2 µL Reverse Primer (10 µM), 2 µL nuclease-free water)
+4. Mix the master mix gently until homogeneous.
+5. Add 6 µL master mix to each PCR tube.
+6. Add to Mutagenesis 2 µL plasmid template
+7. Add to Negative Control 2 µL nuclease-free water
+8. Gently pipette-mix each reaction.
+9. Briefly spin tubes to collect liquid at the bottom.
+10. Place tubes into the thermocycler.

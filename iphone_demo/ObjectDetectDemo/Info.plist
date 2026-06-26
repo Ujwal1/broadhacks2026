@@ -19,7 +19,13 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>NSCameraUsageDescription</key>
-    <string>This app uses the camera to run on-device object detection.</string>
+    <string>This app uses the camera to run on-device object detection and to record experiment videos.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app records audio alongside experiment videos.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>This app saves recorded experiment videos to your photo library.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app can import existing videos from your photo library into your past experiments.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

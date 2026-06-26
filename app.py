@@ -9,6 +9,10 @@ time-range and the single most representative frame where that step happens.
 
 Claude's API takes images, not video — so frames are the unit of alignment.
 
+Tabs: Review (align a protocol to videos), Lab Notebook (experiments recorded in the
+companion iPhone app, plotted by a PCA of each video's text embedding and colored by
+protocol; click a dot/row for its inference output), and Benchmark.
+
 API key: put it (one line) in  video_app/anthropic_key.txt  — read automatically.
 ($ANTHROPIC_API_KEY, $ANTHROPIC_API_KEY_FILE, .anthropic_key, .env also honored.)
 
@@ -19,12 +23,17 @@ Run:
     # laptop:  ssh -L 7860:localhost:7860 <host>  -> open localhost:7860
 """
 import base64
+import datetime
+import hashlib
 import json
 import os
+import re
 import tempfile
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import cv2
+import numpy as np
 import anthropic
 from flask import Flask, request, jsonify, render_template_string
 
@@ -213,7 +222,7 @@ def align(steps, frames, strictness=4):
         model=MODEL,
         max_tokens=12000,
         thinking={"type": "adaptive"},
-        output_config={"format": {"type": "json_schema", "schema": ALIGN_SCHEMA}},
+        extra_body={"output_config": {"format": {"type": "json_schema", "schema": ALIGN_SCHEMA}}},
         messages=[{"role": "user", "content": content}],
     )
     text = next((b.text for b in resp.content if b.type == "text"), "")
@@ -228,6 +237,290 @@ def align(steps, frames, strictness=4):
 
 
 BENCHMARK_DATA = {"config":{"data":"/home/jovyan/workbench/BioVL-QR_zip","categories":["extractdna","gel","electrophoresis","purifydna"],"per_cat":1,"frames":24,"claude_model":"claude-opus-4-8","vlm_model":"Qwen2.5-VL-7B-Instruct (4-bit)  &  Qwen2.5-VL-3B-Instruct","engines":["claude","Qwen2.5-VL-7B-Instruct (4-bit)","Qwen2.5-VL-3B-Instruct"]},"runs":[{"category":"extractdna","video":"extractdna_1","engine":"claude","latency_s":38.7,"n_flags":1,"n_steps":5,"mean_iou":0.485,"localized_frac":1.0,"start_within_5s":0.4,"start_within_10s":0.6,"ordering_acc":0.75,"perstep":[{"gt":[1.0,37.0],"pred":[13.1,39.2]},{"gt":[40.0,47.0],"pred":[78.4,85.0]},{"gt":[55.0,67.0],"pred":[58.8,71.9]},{"gt":[77.0,113.0],"pred":[85.0,104.6]},{"gt":[122.0,146.0],"pred":[124.2,150.3]}]},{"category":"extractdna","video":"extractdna_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":36.1,"n_flags":0,"n_steps":5,"mean_iou":0.372,"localized_frac":1.0,"start_within_5s":0.0,"start_within_10s":0.4,"ordering_acc":1.0,"perstep":[{"gt":[1.0,37.0],"pred":[12.0,31.5]},{"gt":[40.0,47.0],"pred":[32.7,52.3]},{"gt":[55.0,67.0],"pred":[65.4,85.0]},{"gt":[77.0,113.0],"pred":[98.0,117.6]},{"gt":[122.0,146.0],"pred":[130.7,150.3]}]},{"category":"gel","video":"gel_1","engine":"claude","latency_s":24.3,"n_flags":3,"n_steps":6,"mean_iou":0.356,"localized_frac":1.0,"start_within_5s":0.167,"start_within_10s":0.333,"ordering_acc":1.0,"perstep":[{"gt":[2.0,32.0],"pred":[22.7,22.7]},{"gt":[33.0,48.0],"pred":[45.3,45.3]},{"gt":[52.0,188.0],"pred":[45.3,158.7]},{"gt":[203.0,221.0],"pred":[181.4,204.1]},{"gt":[229.0,458.0],"pred":[226.8,453.5]},{"gt":[460.0,518.0],"pred":[476.2,498.8]}]},{"category":"gel","video":"gel_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":111.4,"n_flags":0,"n_steps":6,"mean_iou":0.0,"localized_frac":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"ordering_acc":1.0,"perstep":[{"gt":[2.0,32.0],"pred":None},{"gt":[33.0,48.0],"pred":None},{"gt":[52.0,188.0],"pred":None},{"gt":[203.0,221.0],"pred":None},{"gt":[229.0,458.0],"pred":None},{"gt":[460.0,518.0],"pred":None}]},{"category":"electrophoresis","video":"electrophoresis_1","engine":"claude","latency_s":27.8,"n_flags":3,"n_steps":7,"mean_iou":0.156,"localized_frac":1.0,"start_within_5s":0.143,"start_within_10s":0.286,"ordering_acc":0.833,"perstep":[{"gt":[3.0,10.0],"pred":[63.0,84.0]},{"gt":[17.0,79.0],"pred":[21.0,42.0]},{"gt":[93.0,236.0],"pred":[273.0,315.0]},{"gt":[244.0,356.0],"pred":[336.0,336.1]},{"gt":[357.0,396.0],"pred":[378.1,420.1]},{"gt":[400.0,408.0],"pred":[420.1,441.1]},{"gt":[436.0,481.0],"pred":[441.1,462.1]}]},{"category":"electrophoresis","video":"electrophoresis_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":42.8,"n_flags":0,"n_steps":7,"mean_iou":0.114,"localized_frac":1.0,"start_within_5s":0.286,"start_within_10s":0.286,"ordering_acc":1.0,"perstep":[{"gt":[3.0,10.0],"pred":[0.0,12.0]},{"gt":[17.0,79.0],"pred":[12.0,31.5]},{"gt":[93.0,236.0],"pred":[31.5,42.0]},{"gt":[244.0,356.0],"pred":[42.0,105.0]},{"gt":[357.0,396.0],"pred":[105.0,210.0]},{"gt":[400.0,408.0],"pred":[210.0,252.1]},{"gt":[436.0,481.0],"pred":[252.1,420.1]}]},{"category":"purifydna","video":"purifydna_1","engine":"claude","latency_s":41.6,"n_flags":3,"n_steps":19,"mean_iou":0.14,"localized_frac":1.0,"start_within_5s":0.211,"start_within_10s":0.368,"ordering_acc":0.833,"perstep":[{"gt":[5.0,39.0],"pred":[19.0,56.9]},{"gt":[42.0,50.0],"pred":[37.9,75.8]},{"gt":[60.0,91.0],"pred":[151.7,170.7]},{"gt":[92.0,102.0],"pred":[94.8,113.8]},{"gt":[104.0,111.0],"pred":[113.8,113.8]},{"gt":[112.0,118.0],"pred":[113.8,132.7]},{"gt":[123.0,131.0],"pred":[170.7,208.6]},{"gt":[134.0,164.0],"pred":[208.6,246.5]},{"gt":[174.0,200.0],"pred":[265.5,303.4]},{"gt":[209.0,214.0],"pred":[303.4,322.4]},{"gt":[215.0,218.0],"pred":[303.4,322.4]},{"gt":[220.0,257.0],"pred":[246.5,417.2]},{"gt":[267.0,282.0],"pred":[322.4,341.3]},{"gt":[299.0,304.0],"pred":[341.3,360.3]},{"gt":[305.0,307.0],"pred":[341.3,360.3]},{"gt":[314.0,335.0],"pred":[322.4,360.3]},{"gt":[359.0,368.0],"pred":[360.3,398.2]},{"gt":[368.0,403.0],"pred":[379.3,417.2]},{"gt":[423.0,433.0],"pred":[417.2,436.2]}]},{"category":"purifydna","video":"purifydna_1","engine":"Qwen2.5-VL-3B-Instruct","latency_s":110.5,"n_flags":0,"n_steps":19,"mean_iou":0.0,"localized_frac":1.0,"start_within_5s":0.053,"start_within_10s":0.053,"ordering_acc":1.0,"perstep":[{"gt":[5.0,39.0],"pred":[0.0,5.0]},{"gt":[42.0,50.0],"pred":[5.0,10.0]},{"gt":[60.0,91.0],"pred":[10.0,15.0]},{"gt":[92.0,102.0],"pred":[15.0,20.0]},{"gt":[104.0,111.0],"pred":[20.0,25.0]},{"gt":[112.0,118.0],"pred":[25.0,30.0]},{"gt":[123.0,131.0],"pred":[30.0,35.0]},{"gt":[134.0,164.0],"pred":[35.0,40.0]},{"gt":[174.0,200.0],"pred":[40.0,45.0]},{"gt":[209.0,214.0],"pred":[45.0,50.0]},{"gt":[215.0,218.0],"pred":[50.0,55.0]},{"gt":[220.0,257.0],"pred":[55.0,60.0]},{"gt":[267.0,282.0],"pred":[60.0,65.0]},{"gt":[299.0,304.0],"pred":[65.0,70.0]},{"gt":[305.0,307.0],"pred":[70.0,75.0]},{"gt":[314.0,335.0],"pred":[75.0,80.0]},{"gt":[359.0,368.0],"pred":[80.0,85.0]},{"gt":[368.0,403.0],"pred":[85.0,90.0]},{"gt":[423.0,433.0],"pred":[90.0,95.0]}]},{"category":"extractdna","video":"extractdna_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":64.1,"n_flags":5,"n_steps":5,"mean_iou":0.2,"localized_frac":1.0,"start_within_5s":0.2,"start_within_10s":0.2,"ordering_acc":1.0,"perstep":[{"gt":[1.0,37.0],"pred":[0.0,19.6]},{"gt":[40.0,47.0],"pred":[19.6,32.7]},{"gt":[55.0,67.0],"pred":[32.7,52.3]},{"gt":[77.0,113.0],"pred":[52.3,85.0]},{"gt":[122.0,146.0],"pred":[85.0,150.3]}]},{"category":"gel","video":"gel_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":56.2,"n_flags":6,"n_steps":6,"mean_iou":0.0,"localized_frac":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"ordering_acc":1.0,"perstep":[{"gt":[2.0,32.0],"pred":None},{"gt":[33.0,48.0],"pred":None},{"gt":[52.0,188.0],"pred":None},{"gt":[203.0,221.0],"pred":None},{"gt":[229.0,458.0],"pred":None},{"gt":[460.0,518.0],"pred":None}]},{"category":"electrophoresis","video":"electrophoresis_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":76.4,"n_flags":7,"n_steps":7,"mean_iou":0.126,"localized_frac":1.0,"start_within_5s":0.143,"start_within_10s":0.143,"ordering_acc":1.0,"perstep":[{"gt":[3.0,10.0],"pred":[0.0,42.0]},{"gt":[17.0,79.0],"pred":[42.0,105.0]},{"gt":[93.0,236.0],"pred":[105.0,147.0]},{"gt":[244.0,356.0],"pred":[147.0,210.0]},{"gt":[357.0,396.0],"pred":[210.0,252.1]},{"gt":[400.0,408.0],"pred":[252.1,315.0]},{"gt":[436.0,481.0],"pred":[315.0,357.1]}]},{"category":"purifydna","video":"purifydna_1","engine":"Qwen2.5-VL-7B-Instruct (4-bit)","latency_s":167.1,"n_flags":0,"n_steps":19,"mean_iou":0.0,"localized_frac":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"ordering_acc":1.0,"perstep":[{"gt":[5.0,39.0],"pred":None},{"gt":[42.0,50.0],"pred":None},{"gt":[60.0,91.0],"pred":None},{"gt":[92.0,102.0],"pred":None},{"gt":[104.0,111.0],"pred":None},{"gt":[112.0,118.0],"pred":None},{"gt":[123.0,131.0],"pred":None},{"gt":[134.0,164.0],"pred":None},{"gt":[174.0,200.0],"pred":None},{"gt":[209.0,214.0],"pred":None},{"gt":[215.0,218.0],"pred":None},{"gt":[220.0,257.0],"pred":None},{"gt":[267.0,282.0],"pred":None},{"gt":[299.0,304.0],"pred":None},{"gt":[305.0,307.0],"pred":None},{"gt":[314.0,335.0],"pred":None},{"gt":[359.0,368.0],"pred":None},{"gt":[368.0,403.0],"pred":None},{"gt":[423.0,433.0],"pred":None}]}],"aggregate":{"claude":{"mean_iou":0.284,"start_within_5s":0.23,"start_within_10s":0.397,"localized_frac":1.0,"ordering_acc":0.854,"latency_s":33.1,"n_flags":2.5,"n_videos":4},"Qwen2.5-VL-7B-Instruct (4-bit)":{"mean_iou":0.082,"start_within_5s":0.086,"start_within_10s":0.086,"localized_frac":0.5,"ordering_acc":1.0,"latency_s":90.95,"n_flags":4.5,"n_videos":4},"Qwen2.5-VL-3B-Instruct":{"mean_iou":0.121,"start_within_5s":0.085,"start_within_10s":0.185,"localized_frac":0.75,"ordering_acc":1.0,"latency_s":75.2,"n_flags":0.0,"n_videos":4}},"by_category":{"claude":{"extractdna":{"mean_iou":0.485,"start_within_5s":0.4,"start_within_10s":0.6,"localized_frac":1.0,"ordering_acc":0.75,"latency_s":38.7,"n_flags":1.0,"n_videos":1},"gel":{"mean_iou":0.356,"start_within_5s":0.167,"start_within_10s":0.333,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":24.3,"n_flags":3.0,"n_videos":1},"electrophoresis":{"mean_iou":0.156,"start_within_5s":0.143,"start_within_10s":0.286,"localized_frac":1.0,"ordering_acc":0.833,"latency_s":27.8,"n_flags":3.0,"n_videos":1},"purifydna":{"mean_iou":0.14,"start_within_5s":0.211,"start_within_10s":0.368,"localized_frac":1.0,"ordering_acc":0.833,"latency_s":41.6,"n_flags":3.0,"n_videos":1}},"Qwen2.5-VL-7B-Instruct (4-bit)":{"extractdna":{"mean_iou":0.2,"start_within_5s":0.2,"start_within_10s":0.2,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":64.1,"n_flags":5.0,"n_videos":1},"gel":{"mean_iou":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"localized_frac":0.0,"ordering_acc":1.0,"latency_s":56.2,"n_flags":6.0,"n_videos":1},"electrophoresis":{"mean_iou":0.126,"start_within_5s":0.143,"start_within_10s":0.143,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":76.4,"n_flags":7.0,"n_videos":1},"purifydna":{"mean_iou":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"localized_frac":0.0,"ordering_acc":1.0,"latency_s":167.1,"n_flags":0.0,"n_videos":1}},"Qwen2.5-VL-3B-Instruct":{"extractdna":{"mean_iou":0.372,"start_within_5s":0.0,"start_within_10s":0.4,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":36.1,"n_flags":0.0,"n_videos":1},"gel":{"mean_iou":0.0,"start_within_5s":0.0,"start_within_10s":0.0,"localized_frac":0.0,"ordering_acc":1.0,"latency_s":111.4,"n_flags":0.0,"n_videos":1},"electrophoresis":{"mean_iou":0.114,"start_within_5s":0.286,"start_within_10s":0.286,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":42.8,"n_flags":0.0,"n_videos":1},"purifydna":{"mean_iou":0.0,"start_within_5s":0.053,"start_within_10s":0.053,"localized_frac":1.0,"ordering_acc":1.0,"latency_s":110.5,"n_flags":0.0,"n_videos":1}}}}
+
+
+# ───────────────────────── Lab Notebook ─────────────────────────
+# Server-side mirror of the iPhone app's "Past Experiments". Each experiment carries the
+# same fields the phone's Experiment model does (id / protocolTitle / createdAt / duration /
+# videoFileName) plus its inference output and a video-to-text "summary". The phone will POST
+# its recordings here later (see /api/lab-notebook POST); until then the store is seeded with
+# demo experiments so the notebook + embedding plot are populated.
+
+LAB_NOTEBOOK_DIR = os.path.join(HERE, "lab_notebook")
+LAB_NOTEBOOK_MANIFEST = os.path.join(LAB_NOTEBOOK_DIR, "manifest.json")
+EMBED_DIM = 256
+
+# Protocols known to the app, with the source file (in protocols/) and the plot color. These
+# mirror the three protocols in the iPhone app's drop-down.
+PROTOCOLS = [
+    {"title": "Automated protein synthesis",        "file": "mutagenesis_protocol.txt",     "color": "#0e7c86"},
+    {"title": "Automated liquid handling",          "file": "liquid_transfer_protocol.txt", "color": "#c8960e"},
+    {"title": "High throughput stem cell culturing", "file": "stem_cell_protocol.txt",       "color": "#8e24aa"},
+]
+PROTOCOL_COLOR = {p["title"]: p["color"] for p in PROTOCOLS}
+PROTOCOL_FILE = {p["title"]: p["file"] for p in PROTOCOLS}
+UNCATEGORIZED_COLOR = "#9bb1b8"
+
+
+def load_protocol_steps(filename):
+    """Read the numbered step lines from a protocols/*.txt file (heading/metadata ignored)."""
+    path = os.path.join(HERE, "protocols", filename)
+    steps = []
+    if os.path.isfile(path):
+        for line in open(path, encoding="utf-8"):
+            m = re.match(r"^\s*\d+[.)]\s*(.+)", line)
+            if m:
+                steps.append(m.group(1).strip())
+    return steps
+
+
+# ── video-to-text embedding ──
+def _tokens(text):
+    words = re.findall(r"[a-z0-9]+", (text or "").lower())
+    bigrams = [f"{words[i]}_{words[i+1]}" for i in range(len(words) - 1)]
+    return words + bigrams
+
+
+def _local_embed(text):
+    """Dependency-free hashing embedding of the text (TF over hashed word/bigram buckets)."""
+    vec = np.zeros(EMBED_DIM, dtype=float)
+    for tok in _tokens(text):
+        vec[int(hashlib.md5(tok.encode()).hexdigest(), 16) % EMBED_DIM] += 1.0
+    norm = np.linalg.norm(vec)
+    return vec / norm if norm else vec
+
+
+def embed_text(text):
+    """Embed the video's text description. Uses Voyage AI (Anthropic's recommended embeddings
+    provider) when VOYAGE_API_KEY is set, else a local hashing embedding so this always works."""
+    key = os.environ.get("VOYAGE_API_KEY")
+    if key:
+        try:
+            import voyageai
+            emb = voyageai.Client(api_key=key).embed(
+                [text], model="voyage-3", input_type="document"
+            ).embeddings[0]
+            return np.asarray(emb, dtype=float)
+        except Exception:
+            pass
+    return _local_embed(text)
+
+
+def compute_layout(summaries):
+    """Project text embeddings of each summary down to 2-D (PCA via SVD) for the scatter plot."""
+    n = len(summaries)
+    if n == 0:
+        return []
+    if n == 1:
+        return [[0.0, 0.0]]
+    X = np.vstack([embed_text(s) for s in summaries])
+    Xc = X - X.mean(axis=0, keepdims=True)
+    try:
+        U, S, _ = np.linalg.svd(Xc, full_matrices=False)
+        coords = U[:, :2] * S[:2]
+    except np.linalg.LinAlgError:
+        coords = Xc[:, :2]
+    if coords.shape[1] < 2:
+        coords = np.hstack([coords, np.zeros((n, 2 - coords.shape[1]))])
+    return coords.tolist()
+
+
+# ── seed data (stand-in for phone uploads) ──
+# (protocol, createdAt, duration_s, summary, {step_number: level}) — unlisted steps are green.
+_SEED_SPECS = [
+    ("Automated protein synthesis", "2026-06-15T09:42:00Z", 178,
+     "Operator thaws the Q5 master mix, forward and reverse primers, plasmid template and "
+     "nuclease-free water, labels two PCR tubes, prepares and dispenses the master mix into each "
+     "tube, adds template to the mutagenesis tube and water to the control, pipette-mixes, spins "
+     "the tubes briefly and loads the thermocycler.", {}),
+    ("Automated protein synthesis", "2026-06-18T11:08:00Z", 205,
+     "PCR mutagenesis setup with reagents thawed on ice, two tubes labeled, master mix prepared "
+     "and aliquoted, plasmid template and negative-control water added, reactions pipette-mixed "
+     "and spun down before going into the thermocycler. The brief spin step is hard to see.",
+     {9: "yellow"}),
+    ("Automated protein synthesis", "2026-06-22T14:20:00Z", 161,
+     "Master mix prepared and dispensed across PCR tubes, template added to the mutagenesis "
+     "reaction, tubes mixed and placed in the thermocycler. The negative-control water addition "
+     "is not clearly visible in the frames.", {7: "red"}),
+    ("Automated protein synthesis", "2026-06-24T10:05:00Z", 192,
+     "Full PCR mutagenesis prep: thawing reagents, labeling tubes, building and distributing the "
+     "Q5 master mix, adding plasmid template and control water, gentle pipette mixing, a quick "
+     "spin, and loading the thermocycler block.", {}),
+
+    ("Automated liquid handling", "2026-06-16T13:30:00Z", 47,
+     "Two cups are placed on the bench with one filled with water; the operator gives a thumbs up, "
+     "pours the water steadily from one cup into the other without spilling, sets the cups down "
+     "neatly and gives an OK sign.", {}),
+    ("Automated liquid handling", "2026-06-19T16:12:00Z", 53,
+     "Liquid transfer between two cups: the filled cup is poured into the empty one in a controlled "
+     "stream, no visible spill, and the cups are placed down. The final OK hand sign is not clearly "
+     "shown.", {3: "yellow"}),
+    ("Automated liquid handling", "2026-06-23T08:55:00Z", 41,
+     "Water is transferred from one cup to the other and the cups are set down neatly with a "
+     "thumbs up at the start and an OK sign at the end. Clean controlled pour throughout.", {}),
+
+    ("High throughput stem cell culturing", "2026-06-17T10:15:00Z", 224,
+     "Operator thaws the purified Lenti-Cas12a-U6-TGFBR1 and control lentivirus on ice, retrieves "
+     "the pre-seeded iPSC-fibroblast plates from the incubator, adds virus to each well, rocks the "
+     "plate to distribute it, records the start time and group assignments, and returns the plates "
+     "to the incubator.", {}),
+    ("High throughput stem cell culturing", "2026-06-20T15:48:00Z", 209,
+     "Lentiviral infection of iPSC fibroblasts: virus thawed, pre-seeded plates retrieved, infection "
+     "medium refreshed, virus dispensed into wells, plate rocked to mix, and plates returned to the "
+     "incubator. Logging of group assignments is not visible.", {6: "yellow"}),
+    ("High throughput stem cell culturing", "2026-06-21T09:30:00Z", 238,
+     "iPSC-fibroblast plates infected with lentivirus across wells, plate gently rocked to spread "
+     "the virus evenly, and returned to the incubator for culture. The fresh-medium replacement step "
+     "appears to have been skipped.", {3: "red"}),
+    ("High throughput stem cell culturing", "2026-06-25T12:02:00Z", 217,
+     "Complete lentiviral infection run: thawing virus on ice, retrieving seeded plates, adding the "
+     "appropriate virus to each well, rocking to distribute, recording start time and group layout, "
+     "and incubating the plates.", {}),
+]
+
+
+def _build_inference(protocol_title, summary, flags):
+    steps = load_protocol_steps(PROTOCOL_FILE.get(protocol_title, ""))
+    notes = {
+        "green":  "Action appears to take place as expected.",
+        "yellow": "Could not clearly confirm this step from the sampled frames.",
+        "red":    "Expected action was not visible where it should occur.",
+    }
+    n = max(1, len(steps))
+    out_steps, counts = [], {"green": 0, "yellow": 0, "red": 0}
+    for i, text in enumerate(steps):
+        level = flags.get(i + 1, "green")
+        counts[level] += 1
+        span = 1.0 / n
+        out_steps.append({
+            "step_number": i + 1,
+            "step_text": text,
+            "level": level,
+            "note": notes[level],
+            "start_time_s": round(i * span, 3),
+            "end_time_s": round((i + 1) * span, 3),
+        })
+    return {
+        "observed_summary": summary,
+        "n_green": counts["green"],
+        "n_yellow": counts["yellow"],
+        "n_red": counts["red"],
+        "steps": out_steps,
+    }
+
+
+def _seed_notebook():
+    experiments = []
+    for protocol, created, dur, summary, flags in _SEED_SPECS:
+        experiments.append({
+            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, protocol + created)),
+            "protocolTitle": protocol,
+            "createdAt": created,
+            "duration": float(dur),
+            "videoFileName": None,            # demo rows have no uploaded video yet
+            "summary": summary,
+            "inference": _build_inference(protocol, summary, flags),
+        })
+    return {"experiments": experiments}
+
+
+def load_notebook():
+    if os.path.isfile(LAB_NOTEBOOK_MANIFEST):
+        try:
+            with open(LAB_NOTEBOOK_MANIFEST) as fh:
+                return json.load(fh)
+        except (json.JSONDecodeError, OSError):
+            pass
+    data = _seed_notebook()
+    save_notebook(data)
+    return data
+
+
+def save_notebook(data):
+    os.makedirs(LAB_NOTEBOOK_DIR, exist_ok=True)
+    tmp = LAB_NOTEBOOK_MANIFEST + ".tmp"
+    with open(tmp, "w") as fh:
+        json.dump(data, fh, indent=2)
+    os.replace(tmp, LAB_NOTEBOOK_MANIFEST)
+
+
+def notebook_payload():
+    """Experiments + 2-D embedding coordinates + protocol legend, for the Lab Notebook tab."""
+    data = load_notebook()
+    experiments = data.get("experiments", [])
+    coords = compute_layout([e.get("summary", "") for e in experiments])
+    out = []
+    for e, (x, y) in zip(experiments, coords):
+        inf = e.get("inference", {})
+        out.append({
+            "id": e["id"],
+            "protocolTitle": e["protocolTitle"],
+            "color": PROTOCOL_COLOR.get(e["protocolTitle"], UNCATEGORIZED_COLOR),
+            "createdAt": e["createdAt"],
+            "duration": e.get("duration", 0),
+            "summary": e.get("summary", ""),
+            "x": x, "y": y,
+            "n_green": inf.get("n_green", 0),
+            "n_yellow": inf.get("n_yellow", 0),
+            "n_red": inf.get("n_red", 0),
+            "inference": inf,
+        })
+    legend = [{"title": p["title"], "color": p["color"]} for p in PROTOCOLS]
+    return {"experiments": out, "protocols": legend}
+
+
+@app.route("/api/lab-notebook")
+def lab_notebook_list():
+    return jsonify(notebook_payload())
+
+
+@app.route("/api/lab-notebook/<exp_id>")
+def lab_notebook_detail(exp_id):
+    data = load_notebook()
+    exp = next((e for e in data.get("experiments", []) if e["id"] == exp_id), None)
+    if not exp:
+        return jsonify(error="No such experiment."), 404
+    return jsonify(exp)
+
+
+@app.route("/api/lab-notebook", methods=["POST"])
+def lab_notebook_upload():
+    """Ingest a recording from the iPhone app: store the video + metadata, run inference, and
+    keep a video-to-text summary for the embedding plot. (The phone client is not wired up yet.)"""
+    video = request.files.get("video")
+    protocol_title = (request.form.get("protocolTitle") or "Uncategorized").strip()
+    created = request.form.get("createdAt") or datetime.datetime.utcnow().isoformat() + "Z"
+    if not video or not video.filename:
+        return jsonify(error="Attach a video file."), 400
+
+    os.makedirs(LAB_NOTEBOOK_DIR, exist_ok=True)
+    exp_id = str(uuid.uuid4())
+    stored_name = f"experiment-{exp_id}{os.path.splitext(video.filename)[1] or '.mov'}"
+    stored_path = os.path.join(LAB_NOTEBOOK_DIR, stored_name)
+    video.save(stored_path)
+
+    duration, summary, inference = 0.0, "", {}
+    steps = load_protocol_steps(PROTOCOL_FILE.get(protocol_title, ""))
+    try:
+        frames, _total, duration, _fps = sample_frames(stored_path, 20)
+        if steps:
+            inference = align(steps, frames, strictness=2)
+            summary = inference.get("observed_summary", "")
+    except Exception as e:
+        inference = {"error": str(e)}
+
+    data = load_notebook()
+    data.setdefault("experiments", []).insert(0, {
+        "id": exp_id,
+        "protocolTitle": protocol_title,
+        "createdAt": created,
+        "duration": round(float(duration), 1),
+        "videoFileName": stored_name,
+        "summary": summary or f"{protocol_title} experiment.",
+        "inference": inference,
+    })
+    save_notebook(data)
+    return jsonify(id=exp_id, ok=True)
 
 
 @app.route("/")
@@ -314,7 +607,7 @@ def align_route():
 
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
-<title>Protocol ↔ Video Alignment</title>
+<title>🐧 ProtoCopilot</title>
 <style>
  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:920px;
       margin:36px auto;padding:0 20px;color:#17323a;background:#f7fafb}
@@ -385,12 +678,29 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  .tl-pred{position:absolute;height:8px;top:5px;border-radius:3px;opacity:.85}
  .tl-pred-claude{background:#0e7c86} .tl-pred-7b{background:#c8960e} .tl-pred-3b{background:#8e24aa}
  .tl-miss{font-size:11px;color:#c0392b;margin-left:4px}
+ /* lab notebook */
+ .nb-legend{display:flex;gap:18px;flex-wrap:wrap;margin:4px 0 12px;font-size:13px}
+ .nb-legend span{display:inline-flex;align-items:center;gap:7px;color:#39535b;font-weight:600}
+ .nb-dotlg{width:12px;height:12px;border-radius:50%;display:inline-block}
+ #nbPlotWrap svg{width:100%;height:auto;border:1px solid #d9e6e8;border-radius:10px;background:#fbfdfd;display:block}
+ .nb-dot{cursor:pointer;stroke:#fff;stroke-width:1.5}
+ .nb-dot:hover{stroke:#17323a;stroke-width:2.5}
+ .nb-dot.sel{stroke:#17323a;stroke-width:3}
+ .nb-axis{color:#5c7079;font-size:12px;margin-top:8px;text-align:center}
+ .nb-item{cursor:pointer;padding:10px 12px;border-radius:9px;border:1px solid #eef4f5;margin:6px 0;
+          display:flex;gap:11px;align-items:center;transition:background .12s}
+ .nb-item:hover{background:#f0f6f7} .nb-item.sel{background:#e7f1f2;border-color:#bcd7da}
+ .nb-swatch{width:11px;height:11px;border-radius:50%;flex:none}
+ .nb-item .nb-when{font-weight:700;font-size:14px} .nb-item .nb-meta{color:#5c7079;font-size:12px}
+ .nb-item .nb-counts{margin-left:auto;font-size:12px;white-space:nowrap}
+ .nb-sec{font-weight:700;font-size:13px;color:#17323a;margin:14px 0 2px}
 </style></head><body>
-<h1>🎬↔📋 Protocol–Video Review</h1>
-<p class="sub">Attach a protocol file and one or more videos; Claude (<b>{{model}}</b>) reviews each video against the protocol, step by step.</p>
+<h1>🐧 ProtoCopilot</h1>
+<p class="sub">Attach a protocol file and one or more videos; your co-scientist helps you improve experimental accuracy, reproducibility, and biological plausibility with your experiments, step by step.</p>
 
 <div class="tabs">
  <button class="tab active" onclick="switchTab('review',this)">📋 Review</button>
+ <button class="tab" onclick="switchTab('notebook',this)">📓 Lab Notebook</button>
  <button class="tab" onclick="switchTab('benchmark',this)">📊 Benchmark</button>
 </div>
 
@@ -409,6 +719,21 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  </form>
 </div>
 <div id="out"></div>
+</div>
+
+<div id="tab-notebook" class="tab-panel">
+<div class="card">
+ <div class="vid-h">📓 Lab Notebook</div>
+ <div class="meta">Experiments recorded in the iPhone app's <b>Past Experiments</b>. Each dot is one experiment, laid out by a PCA of the video-to-text embedding of what Claude saw. Dots are colored by protocol — click a dot (or a row below) to see its inference output.</div>
+ <div id="nbLegend" class="nb-legend"></div>
+ <div id="nbPlotWrap"><div class="meta" id="nbPlotMsg">Loading…</div></div>
+ <div class="nb-axis">← PC&#8321; →&nbsp;&nbsp;·&nbsp;&nbsp;vertical: PC&#8322; · proximity ≈ similarity of the observed procedure</div>
+</div>
+<div id="nbDetail"></div>
+<div class="card">
+ <div class="vid-h">All experiments</div>
+ <div id="nbList"></div>
+</div>
 </div>
 
 <div id="tab-benchmark" class="tab-panel">
@@ -442,6 +767,7 @@ function switchTab(id,btn){
  document.getElementById('tab-'+id).classList.add('active');
  btn.classList.add('active');
  if(id==='benchmark' && !BM) loadBenchmark();
+ if(id==='notebook' && !NB) loadNotebook();
 }
 
 // ── review tab ──
@@ -495,6 +821,86 @@ f.onsubmit=async e=>{e.preventDefault();
   DATA=d;renderAll();
  }catch(err){out.innerHTML=`<div class="card">⚠️ ${esc(String(err))}</div>`;}
  b.disabled=false;b.textContent='Review video(s)';};
+
+// ── lab notebook tab ──
+let NB=null, nbSel=null;
+function nbDate(iso){const d=new Date(iso);return isNaN(d)?iso:d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});}
+function nbTime(iso){const d=new Date(iso);return isNaN(d)?'':d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});}
+function nbCounts(e){return `🟢 ${e.n_green}${e.n_yellow?` · 🟡 ${e.n_yellow}`:''}${e.n_red?` · 🔴 ${e.n_red}`:''}`;}
+
+async function loadNotebook(){
+ const r=await fetch('/api/lab-notebook');NB=await r.json();renderNotebook();
+}
+function renderNotebook(){
+ document.getElementById('nbLegend').innerHTML=NB.protocols.map(p=>
+   `<span><span class="nb-dotlg" style="background:${p.color}"></span>${esc(p.title)}</span>`).join('');
+ renderNbPlot();
+ renderNbList();
+}
+function renderNbPlot(){
+ const wrap=document.getElementById('nbPlotWrap');
+ const exps=NB.experiments;
+ if(!exps.length){wrap.innerHTML='<div class="meta">No experiments yet. Record one in the iPhone app.</div>';return;}
+ const W=640,H=430,pad=42;
+ const xs=exps.map(e=>e.x),ys=exps.map(e=>e.y);
+ const xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+ const sx=x=>xmax>xmin?pad+(x-xmin)/(xmax-xmin)*(W-2*pad):W/2;
+ const sy=y=>ymax>ymin?H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad):H/2;
+ let svg=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`;
+ svg+=`<line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="#d9e6e8"/>`+
+      `<line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H-pad}" stroke="#d9e6e8"/>`+
+      `<text x="${W-pad}" y="${H-pad+16}" font-size="11" fill="#9bb1b8" text-anchor="end">PC1</text>`+
+      `<text x="${pad-6}" y="${pad-6}" font-size="11" fill="#9bb1b8" text-anchor="end">PC2</text>`;
+ exps.forEach(e=>{
+  const cls=(e.id===nbSel)?'nb-dot sel':'nb-dot';
+  const t=`${e.protocolTitle} — ${nbDate(e.createdAt)} (${nbCounts(e)})`;
+  svg+=`<circle class="${cls}" cx="${sx(e.x).toFixed(1)}" cy="${sy(e.y).toFixed(1)}" r="9" `+
+       `fill="${e.color}" onclick="selectExperiment('${e.id}')"><title>${esc(t)}</title></circle>`;
+ });
+ svg+=`</svg>`;
+ wrap.innerHTML=svg;
+}
+function renderNbList(){
+ // group by protocol, mirroring the phone's sectioned Past Experiments page
+ const order=[],groups={};
+ NB.experiments.forEach(e=>{if(!groups[e.protocolTitle]){order.push(e.protocolTitle);groups[e.protocolTitle]=[];}groups[e.protocolTitle].push(e);});
+ let h='';
+ order.forEach(title=>{
+  h+=`<div class="nb-sec">${esc(title)}</div>`;
+  h+=groups[title].map(e=>
+    `<div class="nb-item ${e.id===nbSel?'sel':''}" onclick="selectExperiment('${e.id}')">`+
+    `<span class="nb-swatch" style="background:${e.color}"></span>`+
+    `<div><div class="nb-when">${esc(nbDate(e.createdAt))}</div>`+
+    `<div class="nb-meta">${esc(nbTime(e.createdAt))} · ${fmt(e.duration)}</div></div>`+
+    `<div class="nb-counts">${nbCounts(e)}</div></div>`).join('');
+ });
+ document.getElementById('nbList').innerHTML=h;
+}
+function renderNbStep(s){
+ const lvl=(s.level in DOT)?s.level:'yellow';
+ return `<div class="step l-${lvl}" style="padding:10px 0 10px 10px"><div>`+
+        `<div class="st">${s.step_number}. ${esc(s.step_text)}<span class="badge b-${lvl}">${DOT[lvl]} ${LBL[lvl]}</span></div>`+
+        `<div class="ev">${esc(s.note||'')}</div></div></div>`;
+}
+function selectExperiment(id){
+ nbSel=id;
+ const e=NB.experiments.find(x=>x.id===id);
+ renderNbPlot();renderNbList();
+ const det=document.getElementById('nbDetail');
+ if(!e){det.innerHTML='';return;}
+ const inf=e.inference||{};
+ if(inf.error){det.innerHTML=`<div class="card"><div class="vid-h">⚠️ ${esc(inf.error)}</div></div>`;det.scrollIntoView({behavior:'smooth',block:'nearest'});return;}
+ const nr=inf.n_red||0,ny=inf.n_yellow||0;
+ const banner=nr?`<div class="banner alert">🔴 ${nr} step${nr>1?'s':''} appear missed${ny?` · 🟡 ${ny} uncertain`:''}</div>`
+   :ny?`<div class="banner warn">🟡 ${ny} step${ny>1?'s':''} uncertain — worth a glance</div>`
+   :`<div class="banner ok">🟢 All steps look done</div>`;
+ const obs=inf.observed_summary?`<details open><summary>What Claude observed</summary><div style="margin-top:6px">${esc(inf.observed_summary)}</div></details>`:'';
+ det.innerHTML=`<div class="card" style="border:2px solid ${e.color}">`+
+   `<div class="vid-h"><span class="nb-swatch" style="display:inline-block;background:${e.color};margin-right:7px"></span>${esc(e.protocolTitle)}</div>`+
+   `<div class="meta">${esc(nbDate(e.createdAt))} · ${esc(nbTime(e.createdAt))} · ~${fmt(e.duration)}</div>`+
+   banner+(inf.steps||[]).map(renderNbStep).join('')+obs+`</div>`;
+ det.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 
 // ── benchmark tab ──
 let BM=null, activeCat='all';
